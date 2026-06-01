@@ -1,0 +1,12 @@
+package com.publication_trend_tracking_system.sever_web_app.repository;
+
+import com.publication_trend_tracking_system.sever_web_app.entity.Role;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface RoleRepository
+        extends JpaRepository<Role, Integer> {
+
+    Optional<Role> findByRoleName(String roleName);
+}
