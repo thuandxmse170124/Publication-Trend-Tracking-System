@@ -7,7 +7,7 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiRespo
 import com.publication_trend_tracking_system.sever_web_app.dto.response.AuthenticationResponse;
 
 
-import com.publication_trend_tracking_system.sever_web_app.serviceImpl.AuthenticationService;
+import com.publication_trend_tracking_system.sever_web_app.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.web.bind.annotation.*;

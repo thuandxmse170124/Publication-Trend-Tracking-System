@@ -12,6 +12,7 @@ import com.publication_trend_tracking_system.sever_web_app.repository.RoleReposi
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 import com.publication_trend_tracking_system.sever_web_app.security.JwtService;
 
+import com.publication_trend_tracking_system.sever_web_app.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.authentication.AuthenticationManager;

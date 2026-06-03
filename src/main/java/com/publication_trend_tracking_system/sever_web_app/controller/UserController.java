@@ -1,10 +1,13 @@
 package com.publication_trend_tracking_system.sever_web_app.controller;
 
 
+import com.publication_trend_tracking_system.sever_web_app.dto.request.ChangePasswordRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.UserResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 
+import com.publication_trend_tracking_system.sever_web_app.service.UserService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.core.Authentication;
@@ -16,6 +19,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserRepository userRepository;
+
+    private final UserService userService;
+
 
     @GetMapping("/me")
     public UserResponse getMyInfo(
@@ -40,4 +46,19 @@ public class UserController {
                 )
                 .build();
     }
+
+    @PutMapping("/change-password")
+    public ApiResponse<?> changePassword(
+            @RequestBody
+            ChangePasswordRequest request) {
+
+        userService.changePassword(request);
+
+        return ApiResponse.builder()
+                .code(1000)
+                .message("Change password success")
+                .build();
+    }
+
+
 }
