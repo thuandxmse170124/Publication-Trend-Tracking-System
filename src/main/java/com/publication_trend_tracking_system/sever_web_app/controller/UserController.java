@@ -8,6 +8,7 @@ import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 
 import com.publication_trend_tracking_system.sever_web_app.service.UserService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.core.Authentication;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/users")
+@SecurityRequirement(name = "api")
 @RequiredArgsConstructor
 public class UserController {
 

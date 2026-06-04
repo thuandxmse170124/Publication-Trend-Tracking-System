@@ -8,12 +8,14 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.Authenti
 
 
 import com.publication_trend_tracking_system.sever_web_app.service.AuthenticationService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
+@SecurityRequirement(name = "api")
 @RequiredArgsConstructor
 public class AuthenticationController {
 
