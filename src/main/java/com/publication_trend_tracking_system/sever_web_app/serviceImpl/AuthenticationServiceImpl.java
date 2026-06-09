@@ -8,6 +8,8 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.Authenti
 import com.publication_trend_tracking_system.sever_web_app.entity.Role;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.enums.RoleName;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.RoleRepository;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 import com.publication_trend_tracking_system.sever_web_app.security.JwtService;
@@ -41,18 +43,18 @@ public class AuthenticationServiceImpl
         if(userRepository.existsByEmail(
                 request.getEmail())) {
 
-            throw new RuntimeException(
-                    "Email already exists");
+            throw new AppException(
+                    ErrorCode.EMAIL_EXISTED);
+
         }
 
         Role memberRole =
                 roleRepository
                         .findByRoleName(
                                 RoleName.MEMBER.name())
-                        .orElseThrow(
-                                () -> new RuntimeException(
-                                        "Role not found")
-                        );
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.ROLE_NOT_FOUND));
 
         User user = User.builder()
                 .fullName(
@@ -83,7 +85,9 @@ public class AuthenticationServiceImpl
                 userRepository
                         .findByEmail(
                                 request.getEmail())
-                        .orElseThrow();
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         String token =
                 jwtService.generateToken(user);

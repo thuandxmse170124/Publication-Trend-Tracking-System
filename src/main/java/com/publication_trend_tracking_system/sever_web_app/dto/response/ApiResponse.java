@@ -1,17 +1,21 @@
 package com.publication_trend_tracking_system.sever_web_app.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
+import lombok.experimental.FieldDefaults;
 
-@Getter
-@Setter
+@Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
 
-    private int code;
+    @Builder.Default
+    int code = 1000;
 
-    private String message;
+    String message;
 
-    private T result;
+    T result;
 }

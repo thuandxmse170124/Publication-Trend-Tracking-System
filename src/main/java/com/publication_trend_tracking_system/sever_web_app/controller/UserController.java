@@ -5,10 +5,13 @@ import com.publication_trend_tracking_system.sever_web_app.dto.request.ChangePas
 import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.UserResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 
 import com.publication_trend_tracking_system.sever_web_app.service.UserService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.core.Authentication;
@@ -32,11 +35,12 @@ public class UserController {
 
         String email =
                 authentication.getName();
-
         User user =
                 userRepository
                         .findByEmail(email)
-                        .orElseThrow();
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         return UserResponse.builder()
                 .userId(user.getUserId())
@@ -51,13 +55,12 @@ public class UserController {
 
     @PutMapping("/change-password")
     public ApiResponse<?> changePassword(
-            @RequestBody
+            @RequestBody @Valid
             ChangePasswordRequest request) {
 
         userService.changePassword(request);
 
-        return ApiResponse.builder()
-                .code(1000)
+        return ApiResponse.<Void>builder()
                 .message("Change password success")
                 .build();
     }

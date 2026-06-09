@@ -3,6 +3,8 @@ package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.request.ChangePasswordRequest;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -32,15 +34,14 @@ public class UserServiceImpl
         User user =
                 userRepository.findByEmail(email)
                         .orElseThrow(() ->
-                                new RuntimeException(
-                                        "User not found"));
+                                new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (!passwordEncoder.matches(
                 request.getOldPassword(),
                 user.getPasswordHash())) {
 
-            throw new RuntimeException(
-                    "Old password incorrect");
+            throw new AppException(
+                    ErrorCode.OLD_PASSWORD_INCORRECT);
         }
 
         user.setPasswordHash(
