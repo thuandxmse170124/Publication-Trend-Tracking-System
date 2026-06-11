@@ -1,0 +1,256 @@
+package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
+
+import com.publication_trend_tracking_system.sever_web_app.dto.request.CreateFolderRequest;
+import com.publication_trend_tracking_system.sever_web_app.repository.BookmarkPaperRepository;
+import com.publication_trend_tracking_system.sever_web_app.service.BookmarkService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.UpdateNoteRequest;
+import com.publication_trend_tracking_system.sever_web_app.entity.BookmarkFolder;
+import com.publication_trend_tracking_system.sever_web_app.entity.BookmarkPaper;
+import com.publication_trend_tracking_system.sever_web_app.entity.User;
+import com.publication_trend_tracking_system.sever_web_app.repository.BookmarkFolderRepository;
+import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.FolderResponse;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.SavePaperRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.UpdateFolderRequest;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class BookmarkServiceImpl
+        implements BookmarkService {
+
+    private final BookmarkPaperRepository
+            bookmarkPaperRepository;
+    private final BookmarkFolderRepository
+            bookmarkFolderRepository;
+
+    private final UserRepository
+            userRepository;
+
+    @Override
+    public void createFolder(
+            CreateFolderRequest request,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        BookmarkFolder folder =
+                BookmarkFolder.builder()
+                        .folderName(
+                                request.getFolderName())
+                        .user(user)
+                        .build();
+
+        bookmarkFolderRepository.save(folder);
+    }
+
+    @Override
+    public List<FolderResponse> getMyFolders(
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        return bookmarkFolderRepository
+                .findByUserUserId(
+                        user.getUserId())
+                .stream()
+                .map(folder ->
+                        FolderResponse.builder()
+                                .folderId(
+                                        folder.getFolderId())
+                                .folderName(
+                                        folder.getFolderName())
+                                .build())
+                .toList();
+    }
+
+    @Override
+    public void updateFolder(
+            Long folderId,
+            UpdateFolderRequest request,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        BookmarkFolder folder =
+                bookmarkFolderRepository
+                        .findById(folderId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "Folder not found"));
+
+        if (!folder.getUser()
+                .getUserId()
+                .equals(user.getUserId())) {
+
+            throw new RuntimeException(
+                    "You do not own this folder");
+        }
+
+        folder.setFolderName(
+                request.getFolderName());
+
+        bookmarkFolderRepository.save(folder);
+    }
+    @Override
+    public void deleteFolder(
+            Long folderId,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        BookmarkFolder folder =
+                bookmarkFolderRepository
+                        .findById(folderId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "Folder not found"));
+
+        if (!folder.getUser()
+                .getUserId()
+                .equals(user.getUserId())) {
+
+            throw new RuntimeException(
+                    "You do not own this folder");
+        }
+
+        bookmarkFolderRepository.delete(folder);
+    }
+    @Override
+    public void savePaper(
+            Long folderId,
+            SavePaperRequest request,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        BookmarkFolder folder =
+                bookmarkFolderRepository
+                        .findById(folderId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "Folder not found"));
+
+        if (!folder.getUser()
+                .getUserId()
+                .equals(user.getUserId())) {
+
+            throw new RuntimeException(
+                    "You do not own this folder");
+        }
+
+        boolean exists =
+                bookmarkPaperRepository
+                        .existsByFolderFolderIdAndPaperId(
+                                folderId,
+                                request.getPaperId());
+
+        if (exists) {
+
+            throw new RuntimeException(
+                    "Paper already saved");
+        }
+
+        BookmarkPaper paper =
+                BookmarkPaper.builder()
+                        .paperId(
+                                request.getPaperId())
+                        .note(
+                                request.getNote())
+                        .folder(folder)
+                        .build();
+
+        bookmarkPaperRepository.save(paper);
+    }
+    @Override
+    public void removePaper(
+            Long bookmarkId,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        BookmarkPaper paper =
+                bookmarkPaperRepository
+                        .findById(bookmarkId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "Saved paper not found"));
+
+        if (!paper.getFolder()
+                .getUser()
+                .getUserId()
+                .equals(user.getUserId())) {
+
+            throw new RuntimeException(
+                    "You do not own this bookmark");
+        }
+
+        bookmarkPaperRepository.delete(paper);
+    }
+    @Override
+    public void updateNote(
+            Long bookmarkId,
+            UpdateNoteRequest request,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        BookmarkPaper paper =
+                bookmarkPaperRepository
+                        .findById(bookmarkId)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "Saved paper not found"));
+
+        if (!paper.getFolder()
+                .getUser()
+                .getUserId()
+                .equals(user.getUserId())) {
+
+            throw new RuntimeException(
+                    "You do not own this bookmark");
+        }
+
+        paper.setNote(
+                request.getNote());
+
+        bookmarkPaperRepository.save(paper);
+    }
+}
