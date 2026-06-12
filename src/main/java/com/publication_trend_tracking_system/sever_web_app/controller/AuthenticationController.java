@@ -9,6 +9,7 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.Authenti
 
 import com.publication_trend_tracking_system.sever_web_app.service.AuthenticationService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +25,7 @@ public class AuthenticationController {
 
     @PostMapping("/register")
     public ApiResponse<?> register(
-            @RequestBody RegisterRequest request) {
+            @RequestBody @Valid RegisterRequest request) {
 
         authenticationService.register(request);
 
@@ -37,23 +38,11 @@ public class AuthenticationController {
     @PostMapping("/login")
     public ApiResponse<AuthenticationResponse>
     login(
-            @RequestBody
+            @RequestBody @Valid
             AuthenticationRequest request) {
 
-        return ApiResponse
-                .<AuthenticationResponse>builder()
-
-                .code(1000)
-
-                .message("Login Success")
-
-                .result(
-                        authenticationService
-                                .authenticate(request))
-
+        return ApiResponse.<AuthenticationResponse>builder()
+                .result(authenticationService.authenticate(request))
                 .build();
     }
-
-
-
 }
