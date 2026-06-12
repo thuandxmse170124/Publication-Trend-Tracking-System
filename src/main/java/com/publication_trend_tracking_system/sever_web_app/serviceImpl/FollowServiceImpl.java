@@ -1,0 +1,196 @@
+package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
+
+import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowTopicRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowTopicResponse;
+import com.publication_trend_tracking_system.sever_web_app.entity.FollowTopic;
+import com.publication_trend_tracking_system.sever_web_app.entity.User;
+import com.publication_trend_tracking_system.sever_web_app.repository.FollowTopicRepository;
+import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
+import com.publication_trend_tracking_system.sever_web_app.service.FollowService;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowJournalRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowJournalResponse;
+import com.publication_trend_tracking_system.sever_web_app.entity.FollowJournal;
+import com.publication_trend_tracking_system.sever_web_app.repository.FollowJournalRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class FollowServiceImpl
+        implements FollowService {
+
+    private final FollowTopicRepository
+            followTopicRepository;
+    private final FollowJournalRepository
+            followJournalRepository;
+    private final UserRepository
+            userRepository;
+
+    @Override
+    public void followTopic(
+            FollowTopicRequest request,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        boolean exists =
+                followTopicRepository
+                        .existsByUserUserIdAndTopicId(
+                                user.getUserId(),
+                                request.getTopicId());
+
+        if (exists) {
+
+            throw new RuntimeException(
+                    "Topic already followed");
+        }
+
+        FollowTopic followTopic =
+                FollowTopic.builder()
+                        .topicId(
+                                request.getTopicId())
+                        .topicName(
+                                request.getTopicName())
+                        .user(user)
+                        .build();
+
+        followTopicRepository.save(
+                followTopic);
+    }
+
+    @Override
+    public List<FollowTopicResponse>
+    getMyFollowedTopics(
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        return followTopicRepository
+                .findByUserUserId(
+                        user.getUserId())
+                .stream()
+                .map(topic ->
+                        FollowTopicResponse.builder()
+                                .followId(
+                                        topic.getFollowId())
+                                .topicId(
+                                        topic.getTopicId())
+                                .topicName(
+                                        topic.getTopicName())
+                                .build())
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void unfollowTopic(
+            String topicId,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        followTopicRepository
+                .deleteByUserUserIdAndTopicId(
+                        user.getUserId(),
+                        topicId);
+    }
+    @Override
+    public void followJournal(
+            FollowJournalRequest request,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        boolean exists =
+                followJournalRepository
+                        .existsByUserUserIdAndJournalId(
+                                user.getUserId(),
+                                request.getJournalId());
+
+        if (exists) {
+
+            throw new RuntimeException(
+                    "Journal already followed");
+        }
+
+        FollowJournal followJournal =
+                FollowJournal.builder()
+                        .journalId(
+                                request.getJournalId())
+                        .journalName(
+                                request.getJournalName())
+                        .user(user)
+                        .build();
+
+        followJournalRepository.save(
+                followJournal);
+    }
+    @Override
+    public List<FollowJournalResponse>
+    getMyFollowedJournals(
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        return followJournalRepository
+                .findByUserUserId(
+                        user.getUserId())
+                .stream()
+                .map(journal ->
+                        FollowJournalResponse.builder()
+                                .followId(
+                                        journal.getFollowId())
+                                .journalId(
+                                        journal.getJournalId())
+                                .journalName(
+                                        journal.getJournalName())
+                                .build())
+                .toList();
+    }
+    @Override
+    @Transactional
+    public void unfollowJournal(
+            String journalId,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new RuntimeException(
+                                        "User not found"));
+
+        followJournalRepository
+                .deleteByUserUserIdAndJournalId(
+                        user.getUserId(),
+                        journalId);
+    }
+}
