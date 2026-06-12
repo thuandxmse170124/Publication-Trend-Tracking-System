@@ -4,15 +4,15 @@ import com.publication_trend_tracking_system.sever_web_app.dto.request.PaperRequ
 import com.publication_trend_tracking_system.sever_web_app.dto.response.AuthorResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.PaperResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.*;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.*;
 import com.publication_trend_tracking_system.sever_web_app.service.PaperService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashSet;
 import java.util.List;
@@ -149,34 +149,18 @@ public class PaperServiceImpl implements PaperService {
     }
 
     private void validateRequest(PaperRequest request, Long paperId) {
-        if (request.getTitle() == null || request.getTitle().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Paper title is required");
-        }
-
-        if (request.getPublicationType() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Publication type is required");
-        }
-
-        if (request.getVisibilityStatus() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Visibility status is required");
-        }
-
-        if (request.getCitationCount() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Citation count is required");
-        }
-
         String doi = normalize(request.getDoi());
         if (doi != null && !doi.isBlank()) {
             boolean duplicated = paperRepository.existsByDoi(doi);
 
             if (duplicated) {
                 if (paperId == null) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DOI already exists");
+                    throw new AppException(ErrorCode.DOI_EXISTED);
                 }
 
                 Paper paper = findPaper(paperId);
                 if (!doi.equalsIgnoreCase(normalize(paper.getDoi()))) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DOI already exists");
+                    throw new AppException(ErrorCode.DOI_EXISTED);
                 }
             }
         }
@@ -184,7 +168,7 @@ public class PaperServiceImpl implements PaperService {
 
     private Paper findPaper(Long paperId) {
         return paperRepository.findById(paperId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Paper not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.PAPER_NOT_FOUND));
     }
 
     private Journal getJournal(Integer journalId) {
@@ -193,7 +177,7 @@ public class PaperServiceImpl implements PaperService {
         }
 
         return journalRepository.findById(journalId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Journal not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.JOURNAL_NOT_FOUND));
     }
 
     private ResearchField getResearchField(Integer fieldId) {
@@ -202,7 +186,7 @@ public class PaperServiceImpl implements PaperService {
         }
 
         return researchFieldRepository.findById(fieldId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Research field not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.FIELD_NOT_FOUND));
     }
 
     private ApiSource getApiSource(Integer sourceId) {
@@ -211,7 +195,7 @@ public class PaperServiceImpl implements PaperService {
         }
 
         return apiSourceRepository.findById(sourceId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "API source not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.API_SOURCE_NOT_FOUND));
     }
 
     private PaperResponse toResponse(Paper paper) {

@@ -2,6 +2,7 @@ package com.publication_trend_tracking_system.sever_web_app.service;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.JournalResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.Journal;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.repository.JournalRepository;
 import com.publication_trend_tracking_system.sever_web_app.serviceImpl.JournalServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
@@ -58,7 +58,7 @@ public class JournalServiceTest {
     void getJournalById_NotFound() {
         when(journalRepository.findById(1)).thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class, () -> journalService.getJournalById(1));
+        assertThrows(AppException.class, () -> journalService.getJournalById(1));
         verify(journalRepository, times(1)).findById(1);
     }
 }

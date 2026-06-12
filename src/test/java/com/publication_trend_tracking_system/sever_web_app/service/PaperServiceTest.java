@@ -5,6 +5,7 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.PaperRes
 import com.publication_trend_tracking_system.sever_web_app.entity.*;
 import com.publication_trend_tracking_system.sever_web_app.enums.PaperPublicationType;
 import com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.repository.*;
 import com.publication_trend_tracking_system.sever_web_app.serviceImpl.PaperServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +15,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 
@@ -92,6 +92,14 @@ public class PaperServiceTest {
         assertEquals("deep learning", response.getKeywords().get(0));
         assertEquals(1, response.getTopics().size());
         assertEquals("Machine Learning", response.getTopics().get(0));
+    }
+
+    @Test
+    void getPaperById_NotFound() {
+        when(paperRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(AppException.class, () -> paperService.getPaperById(1L));
+        verify(paperRepository, times(1)).findById(1L);
     }
 
     @Test

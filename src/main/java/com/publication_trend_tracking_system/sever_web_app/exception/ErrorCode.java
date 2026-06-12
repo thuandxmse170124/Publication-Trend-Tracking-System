@@ -105,6 +105,31 @@ public enum ErrorCode {
     TOPIC_NOT_FOUND(
             1601,
             "Research topic not found",
+            HttpStatus.NOT_FOUND),
+
+    AUTHOR_NOT_FOUND(
+            1701,
+            "Author not found",
+            HttpStatus.NOT_FOUND),
+
+    JOURNAL_NOT_FOUND(
+            1801,
+            "Journal not found",
+            HttpStatus.NOT_FOUND),
+
+    FIELD_NOT_FOUND(
+            1901,
+            "Research field not found",
+            HttpStatus.NOT_FOUND),
+
+    DOI_EXISTED(
+            1302,
+            "DOI already exists",
+            HttpStatus.BAD_REQUEST),
+
+    API_SOURCE_NOT_FOUND(
+            2001,
+            "API source not found",
             HttpStatus.NOT_FOUND);
 
     private final int code;

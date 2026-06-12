@@ -2,6 +2,7 @@ package com.publication_trend_tracking_system.sever_web_app.service;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.AuthorResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.Author;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.repository.AuthorRepository;
 import com.publication_trend_tracking_system.sever_web_app.serviceImpl.AuthorServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
@@ -56,7 +56,7 @@ public class AuthorServiceTest {
     void getAuthorById_NotFound() {
         when(authorRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class, () -> authorService.getAuthorById(1L));
+        assertThrows(AppException.class, () -> authorService.getAuthorById(1L));
         verify(authorRepository, times(1)).findById(1L);
     }
 }
