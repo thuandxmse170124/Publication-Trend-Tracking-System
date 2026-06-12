@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "papers")
@@ -59,6 +61,33 @@ public class Paper {
     @Enumerated(EnumType.STRING)
     @Column(name = "visibility_status", nullable = false)
     private PaperVisibilityStatus visibilityStatus;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "paper_authors",
+        joinColumns = @JoinColumn(name = "paper_id"),
+        inverseJoinColumns = @JoinColumn(name = "author_id")
+    )
+    @Builder.Default
+    private Set<Author> authors = new HashSet<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "paper_keywords",
+        joinColumns = @JoinColumn(name = "paper_id"),
+        inverseJoinColumns = @JoinColumn(name = "keyword_id")
+    )
+    @Builder.Default
+    private Set<Keyword> keywords = new HashSet<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "paper_topics",
+        joinColumns = @JoinColumn(name = "paper_id"),
+        inverseJoinColumns = @JoinColumn(name = "topic_id")
+    )
+    @Builder.Default
+    private Set<Topic> topics = new HashSet<>();
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

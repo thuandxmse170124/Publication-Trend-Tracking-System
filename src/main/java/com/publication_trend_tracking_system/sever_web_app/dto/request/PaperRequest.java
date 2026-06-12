@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
+import java.util.List;
 
 @Getter
 @Setter
@@ -41,4 +42,10 @@ public class PaperRequest {
 
     @NotNull
     private PaperVisibilityStatus visibilityStatus;
+
+    private List<Long> authorIds;
+
+    private List<String> keywords;
+
+    private List<Integer> topicIds;
 }

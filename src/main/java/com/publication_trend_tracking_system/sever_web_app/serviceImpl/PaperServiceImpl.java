@@ -1,23 +1,22 @@
 package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.request.PaperRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.AuthorResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.PaperResponse;
-import com.publication_trend_tracking_system.sever_web_app.entity.ApiSource;
-import com.publication_trend_tracking_system.sever_web_app.entity.Journal;
-import com.publication_trend_tracking_system.sever_web_app.entity.Paper;
-import com.publication_trend_tracking_system.sever_web_app.entity.ResearchField;
-import com.publication_trend_tracking_system.sever_web_app.repository.ApiSourceRepository;
-import com.publication_trend_tracking_system.sever_web_app.repository.JournalRepository;
-import com.publication_trend_tracking_system.sever_web_app.repository.PaperRepository;
-import com.publication_trend_tracking_system.sever_web_app.repository.ResearchFieldRepository;
+import com.publication_trend_tracking_system.sever_web_app.entity.*;
+import com.publication_trend_tracking_system.sever_web_app.repository.*;
 import com.publication_trend_tracking_system.sever_web_app.service.PaperService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +26,9 @@ public class PaperServiceImpl implements PaperService {
     private final JournalRepository journalRepository;
     private final ResearchFieldRepository researchFieldRepository;
     private final ApiSourceRepository apiSourceRepository;
+    private final AuthorRepository authorRepository;
+    private final KeywordRepository keywordRepository;
+    private final TopicRepository topicRepository;
 
     @Override
     @Transactional
@@ -46,6 +48,8 @@ public class PaperServiceImpl implements PaperService {
                 .citationCount(request.getCitationCount())
                 .visibilityStatus(request.getVisibilityStatus())
                 .build();
+
+        resolveRelationships(paper, request);
 
         return toResponse(paperRepository.save(paper));
     }
@@ -86,6 +90,8 @@ public class PaperServiceImpl implements PaperService {
         existingPaper.setCitationCount(request.getCitationCount());
         existingPaper.setVisibilityStatus(request.getVisibilityStatus());
 
+        resolveRelationships(existingPaper, request);
+
         return toResponse(paperRepository.save(existingPaper));
     }
 
@@ -93,6 +99,53 @@ public class PaperServiceImpl implements PaperService {
     @Transactional
     public void deletePaper(Long paperId) {
         paperRepository.delete(findPaper(paperId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PaperResponse> searchPapers(
+            String keyword,
+            String author,
+            String journal,
+            Integer year,
+            Integer fieldId,
+            Pageable pageable) {
+
+        String kwParam = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+        String authParam = (author == null || author.isBlank()) ? null : author.trim();
+        String jParam = (journal == null || journal.isBlank()) ? null : journal.trim();
+
+        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, pageable);
+        return papers.map(this::toResponse);
+    }
+
+    private void resolveRelationships(Paper paper, PaperRequest request) {
+        // Resolve Authors
+        Set<Author> authors = new HashSet<>();
+        if (request.getAuthorIds() != null && !request.getAuthorIds().isEmpty()) {
+            authors.addAll(authorRepository.findAllById(request.getAuthorIds()));
+        }
+        paper.setAuthors(authors);
+
+        // Resolve Keywords
+        Set<Keyword> keywords = new HashSet<>();
+        if (request.getKeywords() != null) {
+            for (String kwName : request.getKeywords()) {
+                if (kwName == null || kwName.isBlank()) continue;
+                String trimmed = kwName.trim();
+                Keyword keyword = keywordRepository.findByKeywordNameIgnoreCase(trimmed)
+                        .orElseGet(() -> keywordRepository.save(Keyword.builder().keywordName(trimmed).build()));
+                keywords.add(keyword);
+            }
+        }
+        paper.setKeywords(keywords);
+
+        // Resolve Topics
+        Set<Topic> topics = new HashSet<>();
+        if (request.getTopicIds() != null && !request.getTopicIds().isEmpty()) {
+            topics.addAll(topicRepository.findAllById(request.getTopicIds()));
+        }
+        paper.setTopics(topics);
     }
 
     private void validateRequest(PaperRequest request, Long paperId) {
@@ -162,6 +215,23 @@ public class PaperServiceImpl implements PaperService {
     }
 
     private PaperResponse toResponse(Paper paper) {
+        List<AuthorResponse> authorResponses = paper.getAuthors().stream()
+                .map(author -> AuthorResponse.builder()
+                        .authorId(author.getAuthorId())
+                        .fullName(author.getFullName())
+                        .affiliation(author.getAffiliation())
+                        .orcid(author.getOrcid())
+                        .build())
+                .toList();
+
+        List<String> keywordStrings = paper.getKeywords().stream()
+                .map(Keyword::getKeywordName)
+                .toList();
+
+        List<String> topicStrings = paper.getTopics().stream()
+                .map(Topic::getTopicName)
+                .toList();
+
         return PaperResponse.builder()
                 .paperId(paper.getPaperId())
                 .journalId(paper.getJournal() != null ? paper.getJournal().getJournalId() : null)
@@ -180,6 +250,9 @@ public class PaperServiceImpl implements PaperService {
                 .visibilityStatus(paper.getVisibilityStatus())
                 .createdAt(paper.getCreatedAt())
                 .updatedAt(paper.getUpdatedAt())
+                .authors(authorResponses)
+                .keywords(keywordStrings)
+                .topics(topicStrings)
                 .build();
     }
 

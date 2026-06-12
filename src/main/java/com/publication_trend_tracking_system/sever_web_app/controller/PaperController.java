@@ -6,12 +6,16 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.PaperRes
 import com.publication_trend_tracking_system.sever_web_app.service.PaperService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/member/papers")
+@SecurityRequirement(name = "api")
 @RequiredArgsConstructor
 public class PaperController {
 
@@ -27,13 +31,26 @@ public class PaperController {
     }
 
     @GetMapping
-    public ApiResponse<List<PaperResponse>> getAllPapers(
-            @RequestParam(required = false) String keyword) {
+    public ApiResponse<Page<PaperResponse>> searchPapers(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String author,
+            @RequestParam(required = false) String journal,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer fieldId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
 
-        return ApiResponse.<List<PaperResponse>>builder()
+        Sort sort = direction.equalsIgnoreCase("asc") 
+                ? Sort.by(sortBy).ascending() 
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return ApiResponse.<Page<PaperResponse>>builder()
                 .code(1000)
                 .message("Get papers success")
-                .result(paperService.getAllPapers(keyword))
+                .result(paperService.searchPapers(keyword, author, journal, year, fieldId, pageable))
                 .build();
     }
 

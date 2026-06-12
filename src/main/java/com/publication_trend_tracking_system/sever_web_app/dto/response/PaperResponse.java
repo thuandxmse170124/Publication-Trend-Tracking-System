@@ -5,6 +5,7 @@ import com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibility
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -46,4 +47,10 @@ public class PaperResponse {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    private List<AuthorResponse> authors;
+
+    private List<String> keywords;
+
+    private List<String> topics;
 }
