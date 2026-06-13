@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local Config ###
+src/main/resources/application-local.yaml
+### Logs ###
+logs/
+*.log

@@ -56,7 +56,7 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST),
 
     INVALID_FULLNAME(
-            1201,
+            1202,
             "Full name must be between {min} and {max} characters",
             HttpStatus.BAD_REQUEST),
 
@@ -83,6 +83,27 @@ public enum ErrorCode {
             1206,
             "Password must contain at least one uppercase letter and one special character",
             HttpStatus.BAD_REQUEST),
+
+    OLD_PASSWORD_REQUIRED(
+            1208,
+            "Old password is required",
+            HttpStatus.BAD_REQUEST),
+
+    INVALID_TOKEN(
+            1701,
+            "Invalid token",
+            HttpStatus.BAD_REQUEST),
+
+    TOKEN_EXPIRED(
+            1702,
+            "Token expired",
+            HttpStatus.BAD_REQUEST),
+
+    TOKEN_REQUIRED(
+            1703,
+            "Token is required",
+            HttpStatus.BAD_REQUEST),
+
     // Research Paper
     PAPER_NOT_FOUND(
             1301,
