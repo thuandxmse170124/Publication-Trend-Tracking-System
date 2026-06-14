@@ -24,7 +24,7 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
            "LEFT JOIN p.journal j " +
            "LEFT JOIN p.field f " +
            "LEFT JOIN p.topics t " +
-           "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.paperAbstract) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR p.paperAbstract LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
            "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
            "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
            "AND (:year IS NULL OR p.publicationYear = :year) " +
