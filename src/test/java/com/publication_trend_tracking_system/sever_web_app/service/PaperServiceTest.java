@@ -106,10 +106,10 @@ public class PaperServiceTest {
     void searchPapers_Success() {
         Pageable pageable = PageRequest.of(0, 10, Sort.by("createdAt").descending());
         Page<Paper> page = new PageImpl<>(Collections.singletonList(paper), pageable, 1);
-        when(paperRepository.searchPapers("deep", "John", "Nature", 2023, 1, pageable))
+        when(paperRepository.searchPapers("deep", "John", "Nature", 2023, 1, null, pageable))
                 .thenReturn(page);
 
-        Page<PaperResponse> responses = paperService.searchPapers("deep", "John", "Nature", 2023, 1, pageable);
+        Page<PaperResponse> responses = paperService.searchPapers("deep", "John", "Nature", 2023, 1, null, pageable);
 
         assertNotNull(responses);
         assertEquals(1, responses.getTotalElements());

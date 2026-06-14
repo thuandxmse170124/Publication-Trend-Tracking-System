@@ -17,21 +17,26 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     List<Paper> findAllByOrderByCreatedAtDesc();
 
+    List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
+
     @Query("SELECT DISTINCT p FROM Paper p " +
            "LEFT JOIN p.authors a " +
            "LEFT JOIN p.journal j " +
            "LEFT JOIN p.field f " +
+           "LEFT JOIN p.topics t " +
            "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.paperAbstract) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
            "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
            "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
            "AND (:year IS NULL OR p.publicationYear = :year) " +
-           "AND (:fieldId IS NULL OR f.fieldId = :fieldId)")
+           "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
+           "AND (:topicId IS NULL OR t.topicId = :topicId)")
     Page<Paper> searchPapers(
             @Param("keyword") String keyword,
             @Param("author") String author,
             @Param("journal") String journal,
             @Param("year") Integer year,
             @Param("fieldId") Integer fieldId,
+            @Param("topicId") Integer topicId,
             Pageable pageable
     );
 }

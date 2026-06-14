@@ -109,13 +109,14 @@ public class PaperServiceImpl implements PaperService {
             String journal,
             Integer year,
             Integer fieldId,
+            Integer topicId,
             Pageable pageable) {
 
         String kwParam = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
         String authParam = (author == null || author.isBlank()) ? null : author.trim();
         String jParam = (journal == null || journal.isBlank()) ? null : journal.trim();
 
-        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, pageable);
+        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, topicId, pageable);
         return papers.map(this::toResponse);
     }
 
