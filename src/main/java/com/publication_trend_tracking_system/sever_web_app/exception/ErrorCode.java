@@ -49,6 +49,25 @@ public enum ErrorCode {
             "Old password incorrect",
             HttpStatus.BAD_REQUEST),
 
+    EMAIL_NOT_VERIFIED(
+            1105,
+            "Email is not verified",
+            HttpStatus.BAD_REQUEST),
+
+    OTP_INVALID(
+            1106,
+            "OTP is invalid",
+            HttpStatus.BAD_REQUEST),
+
+    OTP_EXPIRED(
+            1107,
+            "OTP has expired",
+            HttpStatus.BAD_REQUEST),
+    OTP_REQUIRED(
+            1208,
+            "OTP is required",
+            HttpStatus.BAD_REQUEST),
+
     // Validation
     FULLNAME_REQUIRED(
             1201,
@@ -56,7 +75,7 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST),
 
     INVALID_FULLNAME(
-            1201,
+            1202,
             "Full name must be between {min} and {max} characters",
             HttpStatus.BAD_REQUEST),
 
@@ -83,6 +102,27 @@ public enum ErrorCode {
             1206,
             "Password must contain at least one uppercase letter and one special character",
             HttpStatus.BAD_REQUEST),
+
+    OLD_PASSWORD_REQUIRED(
+            1208,
+            "Old password is required",
+            HttpStatus.BAD_REQUEST),
+
+    INVALID_TOKEN(
+            1701,
+            "Invalid token",
+            HttpStatus.BAD_REQUEST),
+
+    TOKEN_EXPIRED(
+            1702,
+            "Token expired",
+            HttpStatus.BAD_REQUEST),
+
+    TOKEN_REQUIRED(
+            1703,
+            "Token is required",
+            HttpStatus.BAD_REQUEST),
+
     // Research Paper
     PAPER_NOT_FOUND(
             1301,
@@ -130,7 +170,32 @@ public enum ErrorCode {
     API_SOURCE_NOT_FOUND(
             2001,
             "API source not found",
-            HttpStatus.NOT_FOUND);
+            HttpStatus.NOT_FOUND),
+
+    PREMIUM_NOT_FOUND(
+            3001,
+            "Premium package not found",
+            HttpStatus.NOT_FOUND),
+
+    DISCOUNT_NOT_FOUND(
+            3002,
+            "Discount not found",
+            HttpStatus.NOT_FOUND),
+
+    DISCOUNT_ALREADY_EXISTS(
+            3003,
+            "Discount name already exists",
+            HttpStatus.BAD_REQUEST),
+
+    DISCOUNT_EXPIRED(
+            3004,
+            "Discount has expired or is not active yet",
+            HttpStatus.BAD_REQUEST),
+
+    DISCOUNT_NOT_APPLICABLE(
+            3005,
+            "Discount is not applicable for this premium package",
+            HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
