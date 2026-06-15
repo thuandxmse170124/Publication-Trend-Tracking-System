@@ -5,9 +5,11 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicRes
 import com.publication_trend_tracking_system.sever_web_app.service.TopicService;
 import lombok.RequiredArgsConstructor;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/member/topics")
@@ -18,11 +20,21 @@ public class TopicController {
     private final TopicService topicService;
 
     @GetMapping
-    public ApiResponse<List<TopicResponse>> getAllTopics() {
-        return ApiResponse.<List<TopicResponse>>builder()
+    public ApiResponse<Page<TopicResponse>> getAllTopics(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "topicId") String sortBy,
+            @RequestParam(defaultValue = "asc") String direction) {
+
+        Sort sort = direction.equalsIgnoreCase("desc") 
+                ? Sort.by(sortBy).descending() 
+                : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return ApiResponse.<Page<TopicResponse>>builder()
                 .code(1000)
                 .message("Get topics success")
-                .result(topicService.getAllTopics())
+                .result(topicService.getAllTopics(pageable))
                 .build();
     }
 
