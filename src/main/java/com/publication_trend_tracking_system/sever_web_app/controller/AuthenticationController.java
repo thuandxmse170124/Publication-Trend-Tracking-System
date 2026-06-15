@@ -1,10 +1,7 @@
 package com.publication_trend_tracking_system.sever_web_app.controller;
 
 
-import com.publication_trend_tracking_system.sever_web_app.dto.request.AuthenticationRequest;
-import com.publication_trend_tracking_system.sever_web_app.dto.request.ForgotPasswordRequest;
-import com.publication_trend_tracking_system.sever_web_app.dto.request.RegisterRequest;
-import com.publication_trend_tracking_system.sever_web_app.dto.request.ResetPasswordRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.*;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.AuthenticationResponse;
 
@@ -57,6 +54,21 @@ public class AuthenticationController {
                 .message("Reset password email sent")
                 .build();
     }
+
+    @PostMapping("/verify-email")
+    public ApiResponse<Void> verifyEmail(
+            @RequestBody @Valid
+            VerifyEmailRequest request) {
+
+        authenticationService.verifyEmail(
+                request);
+
+        return ApiResponse.<Void>builder()
+                .message(
+                        "Email verified successfully")
+                .build();
+    }
+
     @PostMapping("/reset-password")
     public ApiResponse<?> resetPassword(
             @RequestBody @Valid ResetPasswordRequest request) {
