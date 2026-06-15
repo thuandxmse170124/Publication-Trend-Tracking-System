@@ -49,6 +49,25 @@ public enum ErrorCode {
             "Old password incorrect",
             HttpStatus.BAD_REQUEST),
 
+    EMAIL_NOT_VERIFIED(
+            1105,
+            "Email is not verified",
+            HttpStatus.BAD_REQUEST),
+
+    OTP_INVALID(
+            1106,
+            "OTP is invalid",
+            HttpStatus.BAD_REQUEST),
+
+    OTP_EXPIRED(
+            1107,
+            "OTP has expired",
+            HttpStatus.BAD_REQUEST),
+    OTP_REQUIRED(
+            1208,
+            "OTP is required",
+            HttpStatus.BAD_REQUEST),
+
     // Validation
     FULLNAME_REQUIRED(
             1201,
