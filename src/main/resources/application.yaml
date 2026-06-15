@@ -1,19 +1,23 @@
 spring:
+  config:
+    import: optional:application-local.yaml
+
   datasource:
     url: jdbc:sqlserver://localhost:1433;databaseName=PublicationTracker;encrypt=true;trustServerCertificate=true
-    username: sa
-    password: 123456
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
   jpa:
     hibernate:
       ddl-auto: update
-
     show-sql: false
 
     properties:
       hibernate:
         format_sql: true
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
 
 server:
   port: 8080
