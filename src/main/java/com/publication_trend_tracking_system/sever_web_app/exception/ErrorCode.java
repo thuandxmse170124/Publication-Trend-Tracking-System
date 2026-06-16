@@ -145,7 +145,18 @@ public enum ErrorCode {
     TOPIC_NOT_FOUND(
             1601,
             "Research topic not found",
-            HttpStatus.NOT_FOUND);
+            HttpStatus.NOT_FOUND),
+
+    // Notification
+    NOTIFICATION_NOT_FOUND(
+            1801,
+            "Notification does not exist",
+            HttpStatus.NOT_FOUND),
+
+    NOTIFICATION_ALREADY_READ(
+            1802,
+            "Notification is already marked as read",
+            HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
