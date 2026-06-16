@@ -105,7 +105,37 @@ public enum ErrorCode {
     TOPIC_NOT_FOUND(
             1601,
             "Research topic not found",
-            HttpStatus.NOT_FOUND);
+            HttpStatus.NOT_FOUND),
+    // Follow
+    TOPIC_ALREADY_FOLLOWED(
+        1701,
+                "Topic already followed",
+        HttpStatus.BAD_REQUEST),
+
+    TOPIC_NOT_FOLLOWED(
+        1702,
+                "You are not following this topic",
+        HttpStatus.BAD_REQUEST),
+
+    JOURNAL_ALREADY_FOLLOWED(
+        1703,
+                "Journal already followed",
+        HttpStatus.BAD_REQUEST),
+
+    JOURNAL_NOT_FOLLOWED(
+        1704,
+                "You are not following this journal",
+        HttpStatus.BAD_REQUEST),
+
+    AUTHOR_ALREADY_FOLLOWED(
+            1705,
+            "Author already followed",
+            HttpStatus.BAD_REQUEST),
+
+    AUTHOR_NOT_FOLLOWED(
+            1706,
+            "You are not following this author",
+            HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

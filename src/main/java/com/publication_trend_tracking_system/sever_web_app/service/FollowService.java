@@ -4,6 +4,8 @@ import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowTop
 import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowTopicResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowJournalRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowJournalResponse;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowAuthorRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowAuthorResponse;
 import java.util.List;
 
 public interface FollowService {
@@ -29,5 +31,17 @@ public interface FollowService {
 
     void unfollowJournal(
             String journalId,
+            String email);
+
+    void followAuthor(
+            FollowAuthorRequest request,
+            String email);
+
+    List<FollowAuthorResponse>
+    getMyFollowedAuthors(
+            String email);
+
+    void unfollowAuthor(
+            String authorId,
             String email);
 }

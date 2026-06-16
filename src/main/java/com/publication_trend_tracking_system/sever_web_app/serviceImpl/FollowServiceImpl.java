@@ -4,8 +4,14 @@ import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowTop
 import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowTopicResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.FollowTopic;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.FollowTopicRepository;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowAuthorRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowAuthorResponse;
+import com.publication_trend_tracking_system.sever_web_app.entity.FollowAuthor;
+import com.publication_trend_tracking_system.sever_web_app.repository.FollowAuthorRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.FollowService;
 import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowJournalRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowJournalResponse;
@@ -28,6 +34,8 @@ public class FollowServiceImpl
             followJournalRepository;
     private final UserRepository
             userRepository;
+    private final FollowAuthorRepository
+            followAuthorRepository;
 
     @Override
     public void followTopic(
@@ -38,8 +46,8 @@ public class FollowServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         boolean exists =
                 followTopicRepository
@@ -49,8 +57,8 @@ public class FollowServiceImpl
 
         if (exists) {
 
-            throw new RuntimeException(
-                    "Topic already followed");
+            throw new AppException(
+                    ErrorCode.TOPIC_ALREADY_FOLLOWED);
         }
 
         FollowTopic followTopic =
@@ -75,8 +83,8 @@ public class FollowServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         return followTopicRepository
                 .findByUserUserId(
@@ -104,9 +112,19 @@ public class FollowServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+        boolean exists =
+                followTopicRepository
+                        .existsByUserUserIdAndTopicId(
+                                user.getUserId(),
+                                topicId);
 
+        if (!exists) {
+
+            throw new AppException(
+                    ErrorCode.TOPIC_NOT_FOLLOWED);
+        }
         followTopicRepository
                 .deleteByUserUserIdAndTopicId(
                         user.getUserId(),
@@ -121,8 +139,8 @@ public class FollowServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         boolean exists =
                 followJournalRepository
@@ -132,8 +150,8 @@ public class FollowServiceImpl
 
         if (exists) {
 
-            throw new RuntimeException(
-                    "Journal already followed");
+            throw new AppException(
+                    ErrorCode.JOURNAL_ALREADY_FOLLOWED);
         }
 
         FollowJournal followJournal =
@@ -157,8 +175,8 @@ public class FollowServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         return followJournalRepository
                 .findByUserUserId(
@@ -185,12 +203,115 @@ public class FollowServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+        boolean exists =
+                followJournalRepository
+                        .existsByUserUserIdAndJournalId(
+                                user.getUserId(),
+                                journalId);
 
+        if (!exists) {
+
+            throw new AppException(
+                    ErrorCode.JOURNAL_NOT_FOLLOWED);
+        }
         followJournalRepository
                 .deleteByUserUserIdAndJournalId(
                         user.getUserId(),
                         journalId);
+    }
+    @Override
+    public void followAuthor(
+            FollowAuthorRequest request,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        boolean exists =
+                followAuthorRepository
+                        .existsByUserUserIdAndAuthorId(
+                                user.getUserId(),
+                                request.getAuthorId());
+
+        if (exists) {
+
+            throw new AppException(
+                    ErrorCode.AUTHOR_ALREADY_FOLLOWED);
+        }
+
+        FollowAuthor followAuthor =
+                FollowAuthor.builder()
+                        .authorId(
+                                request.getAuthorId())
+                        .authorName(
+                                request.getAuthorName())
+                        .user(user)
+                        .build();
+
+        followAuthorRepository.save(
+                followAuthor);
+    }
+    @Override
+    public List<FollowAuthorResponse>
+    getMyFollowedAuthors(
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        return followAuthorRepository
+                .findByUserUserId(
+                        user.getUserId())
+                .stream()
+                .map(author ->
+                        FollowAuthorResponse.builder()
+                                .followId(
+                                        author.getFollowId())
+                                .authorId(
+                                        author.getAuthorId())
+                                .authorName(
+                                        author.getAuthorName())
+                                .build())
+                .toList();
+    }
+    @Override
+    @Transactional
+    public void unfollowAuthor(
+            String authorId,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        boolean exists =
+                followAuthorRepository
+                        .existsByUserUserIdAndAuthorId(
+                                user.getUserId(),
+                                authorId);
+
+        if (!exists) {
+
+            throw new AppException(
+                    ErrorCode.AUTHOR_NOT_FOLLOWED);
+        }
+
+        followAuthorRepository
+                .deleteByUserUserIdAndAuthorId(
+                        user.getUserId(),
+                        authorId);
     }
 }
