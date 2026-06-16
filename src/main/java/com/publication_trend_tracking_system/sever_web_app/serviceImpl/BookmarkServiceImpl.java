@@ -5,6 +5,8 @@ import com.publication_trend_tracking_system.sever_web_app.repository.BookmarkPa
 import com.publication_trend_tracking_system.sever_web_app.service.BookmarkService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.dto.request.UpdateNoteRequest;
 import com.publication_trend_tracking_system.sever_web_app.entity.BookmarkFolder;
 import com.publication_trend_tracking_system.sever_web_app.entity.BookmarkPaper;
@@ -40,6 +42,24 @@ public class BookmarkServiceImpl
                         .orElseThrow(
                                 () -> new RuntimeException(
                                         "User not found"));
+
+        if (request.getFolderName() == null
+                || request.getFolderName()
+                .trim()
+                .isEmpty()) {
+
+            throw new AppException(
+                    ErrorCode.FOLDER_NAME_EMPTY);
+        }
+
+        if (bookmarkFolderRepository
+                .existsByUserUserIdAndFolderName(
+                        user.getUserId(),
+                        request.getFolderName())) {
+
+            throw new AppException(
+                    ErrorCode.FOLDER_ALREADY_EXISTS);
+        }
 
         BookmarkFolder folder =
                 BookmarkFolder.builder()
@@ -93,8 +113,8 @@ public class BookmarkServiceImpl
                 bookmarkFolderRepository
                         .findById(folderId)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "Folder not found"));
+                                () -> new AppException(
+                                        ErrorCode.FOLDER_NOT_FOUND));
 
         if (!folder.getUser()
                 .getUserId()
@@ -103,7 +123,22 @@ public class BookmarkServiceImpl
             throw new RuntimeException(
                     "You do not own this folder");
         }
+        if (request.getFolderName() == null
+                || request.getFolderName()
+                .trim()
+                .isEmpty()) {
 
+            throw new AppException(
+                    ErrorCode.FOLDER_NAME_EMPTY);
+        }
+        if (bookmarkFolderRepository
+                .existsByUserUserIdAndFolderName(
+                        user.getUserId(),
+                        request.getFolderName())) {
+
+            throw new AppException(
+                    ErrorCode.FOLDER_ALREADY_EXISTS);
+        }
         folder.setFolderName(
                 request.getFolderName());
 
@@ -125,8 +160,8 @@ public class BookmarkServiceImpl
                 bookmarkFolderRepository
                         .findById(folderId)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "Folder not found"));
+                                () -> new AppException(
+                                        ErrorCode.FOLDER_NOT_FOUND));
 
         if (!folder.getUser()
                 .getUserId()
@@ -155,8 +190,8 @@ public class BookmarkServiceImpl
                 bookmarkFolderRepository
                         .findById(folderId)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "Folder not found"));
+                                () -> new AppException(
+                                        ErrorCode.FOLDER_NOT_FOUND));
 
         if (!folder.getUser()
                 .getUserId()
@@ -174,8 +209,8 @@ public class BookmarkServiceImpl
 
         if (exists) {
 
-            throw new RuntimeException(
-                    "Paper already saved");
+            throw new AppException(
+                    ErrorCode.PAPER_ALREADY_SAVED);
         }
 
         BookmarkPaper paper =
@@ -205,8 +240,8 @@ public class BookmarkServiceImpl
                 bookmarkPaperRepository
                         .findById(bookmarkId)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "Saved paper not found"));
+                                () -> new AppException(
+                                        ErrorCode.SAVED_PAPER_NOT_FOUND));
 
         if (!paper.getFolder()
                 .getUser()
@@ -236,8 +271,8 @@ public class BookmarkServiceImpl
                 bookmarkPaperRepository
                         .findById(bookmarkId)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "Saved paper not found"));
+                                () -> new AppException(
+                                        ErrorCode.SAVED_PAPER_NOT_FOUND));
 
         if (!paper.getFolder()
                 .getUser()

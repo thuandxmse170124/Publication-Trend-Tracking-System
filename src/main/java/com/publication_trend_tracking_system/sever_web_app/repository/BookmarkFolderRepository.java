@@ -10,4 +10,8 @@ public interface BookmarkFolderRepository
 
     List<BookmarkFolder> findByUserUserId(
             Long userId);
+
+    boolean existsByUserUserIdAndFolderName(
+            Long userId,
+            String folderName);
 }
