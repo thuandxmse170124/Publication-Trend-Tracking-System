@@ -195,6 +195,16 @@ public enum ErrorCode {
     DISCOUNT_NOT_APPLICABLE(
             3005,
             "Discount is not applicable for this premium package",
+            HttpStatus.BAD_REQUEST),
+
+    SYNC_JOB_NOT_FOUND(
+            2002,
+            "Sync job not found",
+            HttpStatus.NOT_FOUND),
+
+    API_SOURCE_INACTIVE(
+            2003,
+            "API source is currently inactive",
             HttpStatus.BAD_REQUEST);
 
     private final int code;

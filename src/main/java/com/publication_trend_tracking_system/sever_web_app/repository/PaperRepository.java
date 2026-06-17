@@ -13,6 +13,10 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     boolean existsByDoi(String doi);
 
+    java.util.Optional<Paper> findByDoiIgnoreCase(String doi);
+
+    java.util.List<Paper> findByTitleIgnoreCase(String title);
+
     List<Paper> findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
 
     List<Paper> findAllByOrderByCreatedAtDesc();

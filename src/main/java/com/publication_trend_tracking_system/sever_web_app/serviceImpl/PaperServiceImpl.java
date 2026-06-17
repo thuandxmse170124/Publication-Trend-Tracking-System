@@ -29,6 +29,7 @@ public class PaperServiceImpl implements PaperService {
     private final AuthorRepository authorRepository;
     private final KeywordRepository keywordRepository;
     private final TopicRepository topicRepository;
+    private final com.publication_trend_tracking_system.sever_web_app.service.SyncService syncService;
 
     @Override
     @Transactional
@@ -102,7 +103,7 @@ public class PaperServiceImpl implements PaperService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Page<PaperResponse> searchPapers(
             String keyword,
             String author,
@@ -116,6 +117,27 @@ public class PaperServiceImpl implements PaperService {
         String jParam = (journal == null || journal.isBlank()) ? null : journal.trim();
 
         Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, pageable);
+
+        // Advanced On-demand Sync: If keyword search returned 0 results, trigger an on-demand sync for this keyword
+        if (papers.isEmpty() && kwParam != null) {
+            try {
+                // Find first active API source dynamically
+                ApiSource activeSource = apiSourceRepository.findAll().stream()
+                        .filter(s -> "ACTIVE".equalsIgnoreCase(s.getStatus()))
+                        .findFirst()
+                        .orElse(null);
+                if (activeSource != null) {
+                    syncService.syncFromSource(activeSource.getSourceId(), null, kwParam);
+                    // Query database again after sync completes
+                    papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, pageable);
+                }
+            } catch (Exception e) {
+                // Log and swallow exception so search still works even if sync fails
+                // (e.g. rate limit, network down, etc.)
+                // log.error("Failed to run on-demand sync for keyword: " + kwParam, e);
+            }
+        }
+
         return papers.map(this::toResponse);
     }
 
