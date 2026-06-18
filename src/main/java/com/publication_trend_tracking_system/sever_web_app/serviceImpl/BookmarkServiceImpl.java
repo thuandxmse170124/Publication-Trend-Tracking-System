@@ -2,6 +2,8 @@ package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.request.CreateFolderRequest;
 import com.publication_trend_tracking_system.sever_web_app.repository.BookmarkPaperRepository;
+import com.publication_trend_tracking_system.sever_web_app.entity.Paper;
+import com.publication_trend_tracking_system.sever_web_app.repository.PaperRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.BookmarkService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,7 +29,8 @@ public class BookmarkServiceImpl
             bookmarkPaperRepository;
     private final BookmarkFolderRepository
             bookmarkFolderRepository;
-
+    private final PaperRepository
+            paperRepository;
     private final UserRepository
             userRepository;
 
@@ -40,8 +43,8 @@ public class BookmarkServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         if (request.getFolderName() == null
                 || request.getFolderName()
@@ -79,8 +82,8 @@ public class BookmarkServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         return bookmarkFolderRepository
                 .findByUserUserId(
@@ -106,8 +109,8 @@ public class BookmarkServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         BookmarkFolder folder =
                 bookmarkFolderRepository
@@ -120,8 +123,8 @@ public class BookmarkServiceImpl
                 .getUserId()
                 .equals(user.getUserId())) {
 
-            throw new RuntimeException(
-                    "You do not own this folder");
+            throw new AppException(
+                    ErrorCode.UNAUTHORIZED);
         }
         if (request.getFolderName() == null
                 || request.getFolderName()
@@ -153,8 +156,8 @@ public class BookmarkServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         BookmarkFolder folder =
                 bookmarkFolderRepository
@@ -167,8 +170,8 @@ public class BookmarkServiceImpl
                 .getUserId()
                 .equals(user.getUserId())) {
 
-            throw new RuntimeException(
-                    "You do not own this folder");
+            throw new AppException(
+                    ErrorCode.UNAUTHORIZED);
         }
 
         bookmarkFolderRepository.delete(folder);
@@ -183,8 +186,8 @@ public class BookmarkServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         BookmarkFolder folder =
                 bookmarkFolderRepository
@@ -197,10 +200,15 @@ public class BookmarkServiceImpl
                 .getUserId()
                 .equals(user.getUserId())) {
 
-            throw new RuntimeException(
-                    "You do not own this folder");
+            throw new AppException(
+                    ErrorCode.UNAUTHORIZED);
         }
-
+                paperRepository
+                        .findById(
+                                request.getPaperId())
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.PAPER_NOT_FOUND));
         boolean exists =
                 bookmarkPaperRepository
                         .existsByFolderFolderIdAndPaperId(
@@ -233,8 +241,8 @@ public class BookmarkServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         BookmarkPaper paper =
                 bookmarkPaperRepository
@@ -264,8 +272,8 @@ public class BookmarkServiceImpl
                 userRepository
                         .findByEmail(email)
                         .orElseThrow(
-                                () -> new RuntimeException(
-                                        "User not found"));
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
         BookmarkPaper paper =
                 bookmarkPaperRepository
@@ -279,8 +287,8 @@ public class BookmarkServiceImpl
                 .getUserId()
                 .equals(user.getUserId())) {
 
-            throw new RuntimeException(
-                    "You do not own this bookmark");
+            throw new AppException(
+                    ErrorCode.UNAUTHORIZED);
         }
 
         paper.setNote(
