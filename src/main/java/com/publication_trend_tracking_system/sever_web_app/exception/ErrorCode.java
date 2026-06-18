@@ -135,7 +135,12 @@ public enum ErrorCode {
     AUTHOR_NOT_FOLLOWED(
             1706,
             "You are not following this author",
-            HttpStatus.BAD_REQUEST);
+            HttpStatus.BAD_REQUEST),
+
+    AUTHOR_NOT_FOUND(
+            1707,
+            "Author not found",
+            HttpStatus.NOT_FOUND);
 
     private final int code;
     private final String message;

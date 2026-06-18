@@ -9,7 +9,5 @@ import lombok.*;
 @Builder
 public class FollowAuthorRequest {
 
-    private String authorId;
-
-    private String authorName;
+    private Long authorId;
 }

@@ -11,11 +11,11 @@ public interface FollowAuthorRepository
     List<FollowAuthor> findByUserUserId(
             Long userId);
 
-    boolean existsByUserUserIdAndAuthorId(
+    boolean existsByUserUserIdAndAuthorAuthorId(
             Long userId,
-            String authorId);
+            Long authorId);
 
-    void deleteByUserUserIdAndAuthorId(
+    void deleteByUserUserIdAndAuthorAuthorId(
             Long userId,
-            String authorId);
+            Long authorId);
 }

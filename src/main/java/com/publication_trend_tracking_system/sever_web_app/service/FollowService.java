@@ -42,6 +42,6 @@ public interface FollowService {
             String email);
 
     void unfollowAuthor(
-            String authorId,
+            Long authorId,
             String email);
 }

@@ -11,7 +11,7 @@ public class FollowAuthorResponse {
 
     private Long followId;
 
-    private String authorId;
+    private Long authorId;
 
     private String authorName;
 }

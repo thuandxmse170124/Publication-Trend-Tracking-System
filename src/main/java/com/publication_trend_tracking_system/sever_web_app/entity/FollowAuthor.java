@@ -19,11 +19,9 @@ public class FollowAuthor {
     @Column(name = "follow_id")
     private Long followId;
 
-    @Column(name = "author_id", nullable = false)
-    private String authorId;
-
-    @Column(name = "author_name", nullable = false)
-    private String authorName;
+    @ManyToOne
+    @JoinColumn(name = "author_id")
+    private Author author;
 
     @Column(name = "followed_at")
     private LocalDateTime followedAt;

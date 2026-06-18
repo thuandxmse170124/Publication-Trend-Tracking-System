@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:sqlserver://localhost:1433;databaseName=PublicationTracker;encrypt=true;trustServerCertificate=true
     username: sa
-    password: 123456
+    password: 12345
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
   jpa:

@@ -126,9 +126,9 @@ public class FollowController {
                                         authentication.getName()))
                 .build();
     }
-    @DeleteMapping("/authors")
+    @DeleteMapping("/authors/{authorId}")
     public ApiResponse<?> unfollowAuthor(
-            @RequestParam String authorId,
+            @PathVariable Long authorId,
             Authentication authentication) {
 
         followService.unfollowAuthor(

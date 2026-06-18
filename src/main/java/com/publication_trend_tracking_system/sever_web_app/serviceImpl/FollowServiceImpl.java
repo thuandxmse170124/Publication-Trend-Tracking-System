@@ -4,6 +4,8 @@ import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowTop
 import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowTopicResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.FollowTopic;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
+import com.publication_trend_tracking_system.sever_web_app.entity.Author;
+import com.publication_trend_tracking_system.sever_web_app.repository.AuthorRepository;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.FollowTopicRepository;
@@ -36,6 +38,8 @@ public class FollowServiceImpl
             userRepository;
     private final FollowAuthorRepository
             followAuthorRepository;
+    private final AuthorRepository
+            authorRepository;
 
     @Override
     public void followTopic(
@@ -235,7 +239,7 @@ public class FollowServiceImpl
 
         boolean exists =
                 followAuthorRepository
-                        .existsByUserUserIdAndAuthorId(
+                        .existsByUserUserIdAndAuthorAuthorId(
                                 user.getUserId(),
                                 request.getAuthorId());
 
@@ -245,12 +249,17 @@ public class FollowServiceImpl
                     ErrorCode.AUTHOR_ALREADY_FOLLOWED);
         }
 
+        Author author =
+                authorRepository
+                        .findById(
+                                request.getAuthorId())
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.AUTHOR_NOT_FOUND));
+
         FollowAuthor followAuthor =
                 FollowAuthor.builder()
-                        .authorId(
-                                request.getAuthorId())
-                        .authorName(
-                                request.getAuthorName())
+                        .author(author)
                         .user(user)
                         .build();
 
@@ -278,16 +287,18 @@ public class FollowServiceImpl
                                 .followId(
                                         author.getFollowId())
                                 .authorId(
-                                        author.getAuthorId())
+                                        author.getAuthor()
+                                                .getAuthorId())
                                 .authorName(
-                                        author.getAuthorName())
+                                        author.getAuthor()
+                                                .getFullName())
                                 .build())
                 .toList();
     }
     @Override
     @Transactional
     public void unfollowAuthor(
-            String authorId,
+            Long authorId,
             String email) {
 
         User user =
@@ -299,7 +310,7 @@ public class FollowServiceImpl
 
         boolean exists =
                 followAuthorRepository
-                        .existsByUserUserIdAndAuthorId(
+                        .existsByUserUserIdAndAuthorAuthorId(
                                 user.getUserId(),
                                 authorId);
 
@@ -310,7 +321,7 @@ public class FollowServiceImpl
         }
 
         followAuthorRepository
-                .deleteByUserUserIdAndAuthorId(
+                .deleteByUserUserIdAndAuthorAuthorId(
                         user.getUserId(),
                         authorId);
     }
