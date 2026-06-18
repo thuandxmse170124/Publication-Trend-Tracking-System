@@ -170,9 +170,9 @@ public class SyncServiceImpl implements SyncService {
     private String buildApiUrl(ApiSource source, String query) throws Exception {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
         if ("OpenAlex".equalsIgnoreCase(source.getSourceName())) {
-            return source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=10";
+            return source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=50";
         } else if ("Semantic Scholar".equalsIgnoreCase(source.getSourceName())) {
-            return source.getBaseUrl() + "/v1/paper/search?query=" + encodedQuery + "&limit=10&fields=title,abstract,authors,journal,year,externalIds,citationCount";
+            return source.getBaseUrl() + "/v1/paper/search?query=" + encodedQuery + "&limit=50&fields=title,abstract,authors,journal,year,externalIds,citationCount";
         }
         throw new IllegalArgumentException("Unsupported source name: " + source.getSourceName());
     }
