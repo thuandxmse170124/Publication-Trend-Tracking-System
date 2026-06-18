@@ -9,7 +9,7 @@ import lombok.*;
 @Builder
 public class SavePaperRequest {
 
-    private String paperId;
+    private Long paperId;
 
     private String note;
 }

@@ -19,8 +19,8 @@ public class BookmarkPaper {
     @Column(name = "bookmark_id")
     private Long bookmarkId;
 
-    @Column(name = "paper_id", nullable = false)
-    private String paperId;
+    @Column(name = "paper_id")
+    private Long paperId;
 
     @Column(name = "note")
     private String note;

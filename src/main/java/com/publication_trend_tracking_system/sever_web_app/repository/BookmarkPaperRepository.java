@@ -11,9 +11,9 @@ public interface BookmarkPaperRepository
 
     List<BookmarkPaper> findByFolderFolderId(
             Long folderId);
-    boolean existsByFolderFolderIdAndPaperId(
+    existsByFolderFolderIdAndPaperId(
             Long folderId,
-            String paperId);
+            Long paperId)
     Optional<BookmarkPaper> findByBookmarkId(
             Long bookmarkId);
 }
