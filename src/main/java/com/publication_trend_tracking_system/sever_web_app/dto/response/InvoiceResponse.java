@@ -6,18 +6,20 @@ import java.math.BigDecimal;
 
 @Getter
 @Setter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PremiumResponse {
+@Builder
+public class InvoiceResponse {
 
-    private Long premiumId;
+    private Long invoiceId;
 
     private String packageName;
 
-    private BigDecimal amount;
+    private BigDecimal originalAmount;
 
-    private Integer durationDays;
+    private BigDecimal discountAmount;
 
-    private String description;
+    private BigDecimal finalAmount;
+
+    private String status;
 }
