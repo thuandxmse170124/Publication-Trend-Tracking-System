@@ -18,8 +18,8 @@ public class PasswordResetToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String token;
+    @Column(name = "otp_code")
+    private String otpCode;
 
     @Column(nullable = false)
     private LocalDateTime expiryTime;
