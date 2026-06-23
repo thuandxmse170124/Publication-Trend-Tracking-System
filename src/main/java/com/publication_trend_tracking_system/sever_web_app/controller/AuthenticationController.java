@@ -1,14 +1,12 @@
 package com.publication_trend_tracking_system.sever_web_app.controller;
 
 
-import com.publication_trend_tracking_system.sever_web_app.dto.request.AuthenticationRequest;
-import com.publication_trend_tracking_system.sever_web_app.dto.request.RegisterRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.*;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.AuthenticationResponse;
 
 
 import com.publication_trend_tracking_system.sever_web_app.service.AuthenticationService;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -16,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
-@SecurityRequirement(name = "api")
 @RequiredArgsConstructor
 public class AuthenticationController {
 
@@ -45,4 +42,43 @@ public class AuthenticationController {
                 .result(authenticationService.authenticate(request))
                 .build();
     }
+
+    @PostMapping("/forgot-password")
+    public ApiResponse<?> forgotPassword(
+            @RequestBody @Valid ForgotPasswordRequest request) {
+
+        authenticationService
+                .forgotPassword(request);
+
+        return ApiResponse.builder()
+                .message("Reset password email sent")
+                .build();
+    }
+
+    @PostMapping("/verify-email")
+    public ApiResponse<Void> verifyEmail(
+            @RequestBody @Valid
+            VerifyEmailRequest request) {
+
+        authenticationService.verifyEmail(
+                request);
+
+        return ApiResponse.<Void>builder()
+                .message(
+                        "Email verified successfully")
+                .build();
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<?> resetPassword(
+            @RequestBody @Valid ResetPasswordRequest request) {
+
+        authenticationService
+                .resetPassword(request);
+
+        return ApiResponse.builder()
+                .message("Password reset success")
+                .build();
+    }
+
 }

@@ -42,8 +42,7 @@ public class Paper {
     @Column(name = "title", nullable = false)
     private String title;
 
-    @Lob
-    @Column(name = "abstract")
+    @Column(name = "abstract", columnDefinition = "VARCHAR(MAX)")
     private String paperAbstract;
 
     @Column(name = "publication_year")

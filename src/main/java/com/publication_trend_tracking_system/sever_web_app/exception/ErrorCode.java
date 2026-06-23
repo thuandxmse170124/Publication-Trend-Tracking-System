@@ -63,10 +63,6 @@ public enum ErrorCode {
             1107,
             "OTP has expired",
             HttpStatus.BAD_REQUEST),
-    OTP_REQUIRED(
-            1208,
-            "OTP is required",
-            HttpStatus.BAD_REQUEST),
 
     // Validation
     FULLNAME_REQUIRED(
@@ -78,12 +74,6 @@ public enum ErrorCode {
             1202,
             "Full name must be between {min} and {max} characters",
             HttpStatus.BAD_REQUEST),
-
-    EMAIL_REQUIRED(
-            1207,
-            "Email is required",
-            HttpStatus.BAD_REQUEST),
-
     INVALID_EMAIL(
             1203,
             "Invalid email format",
@@ -92,34 +82,48 @@ public enum ErrorCode {
             1204,
             "Password is required",
             HttpStatus.BAD_REQUEST),
-
     INVALID_PASSWORD(
             1205,
             "Password must be at least {min} characters",
             HttpStatus.BAD_REQUEST),
-
     PASSWORD_INVALID_FORMAT(
             1206,
             "Password must contain at least one uppercase letter and one special character",
             HttpStatus.BAD_REQUEST),
+    EMAIL_REQUIRED(
+            1207,
+            "Email is required",
+            HttpStatus.BAD_REQUEST),
+    OTP_REQUIRED(
+            1208,
+            "OTP is required",
+            HttpStatus.BAD_REQUEST),
+    PASSWORD_NOT_MATCH(
+            1209,
+            "Password and confirm password do not match",
+            HttpStatus.BAD_REQUEST),
 
     OLD_PASSWORD_REQUIRED(
-            1208,
+            1210,
             "Old password is required",
+            HttpStatus.BAD_REQUEST),
+    CONFIRM_PASSWORD_REQUIRED(
+            1211,
+            "Confirm password is required",
             HttpStatus.BAD_REQUEST),
 
     INVALID_TOKEN(
-            1701,
+            1704,
             "Invalid token",
             HttpStatus.BAD_REQUEST),
 
     TOKEN_EXPIRED(
-            1702,
+            1705,
             "Token expired",
             HttpStatus.BAD_REQUEST),
 
     TOKEN_REQUIRED(
-            1703,
+            1706,
             "Token is required",
             HttpStatus.BAD_REQUEST),
 
