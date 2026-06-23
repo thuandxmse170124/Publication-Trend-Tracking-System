@@ -9,7 +9,5 @@ import lombok.*;
 @Builder
 public class FollowJournalRequest {
 
-    private String journalId;
-
-    private String journalName;
+    private Integer journalId;
 }

@@ -11,7 +11,7 @@ public class FollowJournalResponse {
 
     private Long followId;
 
-    private String journalId;
+    private Integer journalId;
 
     private String journalName;
 }

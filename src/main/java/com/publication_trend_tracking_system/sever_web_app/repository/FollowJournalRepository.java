@@ -11,11 +11,11 @@ public interface FollowJournalRepository
     List<FollowJournal> findByUserUserId(
             Long userId);
 
-    boolean existsByUserUserIdAndJournalId(
+    boolean existsByUserUserIdAndJournalJournalId(
             Long userId,
-            String journalId);
+            Integer journalId);
 
-    void deleteByUserUserIdAndJournalId(
+    void deleteByUserUserIdAndJournalJournalId(
             Long userId,
-            String journalId);
+            Integer journalId);
 }

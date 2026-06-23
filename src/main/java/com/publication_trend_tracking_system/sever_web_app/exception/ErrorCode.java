@@ -142,11 +142,6 @@ public enum ErrorCode {
             "Author not found",
             HttpStatus.NOT_FOUND),
 
-    AUTHOR_NOT_FOUND(
-            1701,
-            "Author not found",
-            HttpStatus.NOT_FOUND),
-
     JOURNAL_NOT_FOUND(
             1801,
             "Journal not found",

@@ -44,9 +44,9 @@ public class FollowController {
                 .build();
     }
 
-    @DeleteMapping("/topics")
+    @DeleteMapping("/topics/{topicId}")
     public ApiResponse<?> unfollowTopic(
-            @RequestParam String topicId,
+            @PathVariable Integer topicId,
             Authentication authentication) {
 
         followService.unfollowTopic(
@@ -85,9 +85,9 @@ public class FollowController {
                                         authentication.getName()))
                 .build();
     }
-    @DeleteMapping("/journals")
+    @DeleteMapping("/journals/{journalId}")
     public ApiResponse<?> unfollowJournal(
-            @RequestParam String journalId,
+            @PathVariable Integer journalId,
             Authentication authentication) {
 
         followService.unfollowJournal(

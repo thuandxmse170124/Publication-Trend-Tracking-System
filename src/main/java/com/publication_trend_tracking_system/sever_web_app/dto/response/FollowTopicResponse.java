@@ -11,7 +11,7 @@ public class FollowTopicResponse {
 
     private Long followId;
 
-    private String topicId;
+    private Integer topicId;
 
     private String topicName;
 }

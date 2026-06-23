@@ -19,11 +19,9 @@ public class FollowJournal {
     @Column(name = "follow_id")
     private Long followId;
 
-    @Column(name = "journal_id", nullable = false)
-    private String journalId;
-
-    @Column(name = "journal_name", nullable = false)
-    private String journalName;
+    @ManyToOne
+    @JoinColumn(name = "journal_id")
+    private Journal journal;
 
     @Column(name = "followed_at")
     private LocalDateTime followedAt;

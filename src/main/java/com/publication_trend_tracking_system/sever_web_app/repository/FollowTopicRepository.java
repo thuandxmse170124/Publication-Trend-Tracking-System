@@ -11,11 +11,11 @@ public interface FollowTopicRepository
     List<FollowTopic> findByUserUserId(
             Long userId);
 
-    boolean existsByUserUserIdAndTopicId(
+    boolean existsByUserUserIdAndTopicTopicId(
             Long userId,
-            String topicId);
+            Integer topicId);
 
-    void deleteByUserUserIdAndTopicId(
+    void deleteByUserUserIdAndTopicTopicId(
             Long userId,
-            String topicId);
+            Integer topicId);
 }

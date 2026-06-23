@@ -9,7 +9,5 @@ import lombok.*;
 @Builder
 public class FollowTopicRequest {
 
-    private String topicId;
-
-    private String topicName;
+    private Integer topicId;
 }

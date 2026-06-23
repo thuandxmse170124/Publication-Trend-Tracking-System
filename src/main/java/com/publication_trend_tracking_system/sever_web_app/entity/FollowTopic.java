@@ -19,11 +19,9 @@ public class FollowTopic {
     @Column(name = "follow_id")
     private Long followId;
 
-    @Column(name = "topic_id", nullable = false)
-    private String topicId;
-
-    @Column(name = "topic_name", nullable = false)
-    private String topicName;
+    @ManyToOne
+    @JoinColumn(name = "topic_id")
+    private Topic topic;
 
     @Column(name = "followed_at")
     private LocalDateTime followedAt;

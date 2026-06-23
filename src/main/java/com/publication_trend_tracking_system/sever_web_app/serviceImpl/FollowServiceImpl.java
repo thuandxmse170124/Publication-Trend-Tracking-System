@@ -2,23 +2,19 @@ package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowTopicRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowTopicResponse;
-import com.publication_trend_tracking_system.sever_web_app.entity.FollowTopic;
-import com.publication_trend_tracking_system.sever_web_app.entity.User;
-import com.publication_trend_tracking_system.sever_web_app.entity.Author;
-import com.publication_trend_tracking_system.sever_web_app.repository.AuthorRepository;
+import com.publication_trend_tracking_system.sever_web_app.entity.*;
+import com.publication_trend_tracking_system.sever_web_app.repository.*;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
-import com.publication_trend_tracking_system.sever_web_app.repository.FollowTopicRepository;
-import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowAuthorRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowAuthorResponse;
-import com.publication_trend_tracking_system.sever_web_app.entity.FollowAuthor;
-import com.publication_trend_tracking_system.sever_web_app.repository.FollowAuthorRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.FollowService;
 import com.publication_trend_tracking_system.sever_web_app.dto.request.FollowJournalRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.FollowJournalResponse;
-import com.publication_trend_tracking_system.sever_web_app.entity.FollowJournal;
-import com.publication_trend_tracking_system.sever_web_app.repository.FollowJournalRepository;
+import com.publication_trend_tracking_system.sever_web_app.entity.Topic;
+import com.publication_trend_tracking_system.sever_web_app.entity.Journal;
+import com.publication_trend_tracking_system.sever_web_app.repository.TopicRepository;
+import com.publication_trend_tracking_system.sever_web_app.repository.JournalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +25,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FollowServiceImpl
         implements FollowService {
-
+    private final TopicRepository
+            topicRepository;
+    private final JournalRepository
+            journalRepository;
     private final FollowTopicRepository
             followTopicRepository;
     private final FollowJournalRepository
@@ -55,7 +54,7 @@ public class FollowServiceImpl
 
         boolean exists =
                 followTopicRepository
-                        .existsByUserUserIdAndTopicId(
+                        .existsByUserUserIdAndTopicTopicId(
                                 user.getUserId(),
                                 request.getTopicId());
 
@@ -65,12 +64,17 @@ public class FollowServiceImpl
                     ErrorCode.TOPIC_ALREADY_FOLLOWED);
         }
 
+        Topic topic =
+                topicRepository
+                        .findById(
+                                request.getTopicId())
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.TOPIC_NOT_FOUND));
+
         FollowTopic followTopic =
                 FollowTopic.builder()
-                        .topicId(
-                                request.getTopicId())
-                        .topicName(
-                                request.getTopicName())
+                        .topic(topic)
                         .user(user)
                         .build();
 
@@ -99,9 +103,11 @@ public class FollowServiceImpl
                                 .followId(
                                         topic.getFollowId())
                                 .topicId(
-                                        topic.getTopicId())
+                                        topic.getTopic()
+                                                .getTopicId())
                                 .topicName(
-                                        topic.getTopicName())
+                                        topic.getTopic()
+                                                .getTopicName())
                                 .build())
                 .toList();
     }
@@ -109,7 +115,7 @@ public class FollowServiceImpl
     @Override
     @Transactional
     public void unfollowTopic(
-            String topicId,
+            Integer topicId,
             String email) {
 
         User user =
@@ -120,17 +126,16 @@ public class FollowServiceImpl
                                         ErrorCode.USER_NOT_FOUND));
         boolean exists =
                 followTopicRepository
-                        .existsByUserUserIdAndTopicId(
+                        .existsByUserUserIdAndTopicTopicId(
                                 user.getUserId(),
                                 topicId);
-
         if (!exists) {
 
             throw new AppException(
                     ErrorCode.TOPIC_NOT_FOLLOWED);
         }
         followTopicRepository
-                .deleteByUserUserIdAndTopicId(
+                .deleteByUserUserIdAndTopicTopicId(
                         user.getUserId(),
                         topicId);
     }
@@ -148,7 +153,7 @@ public class FollowServiceImpl
 
         boolean exists =
                 followJournalRepository
-                        .existsByUserUserIdAndJournalId(
+                        .existsByUserUserIdAndJournalJournalId(
                                 user.getUserId(),
                                 request.getJournalId());
 
@@ -157,13 +162,16 @@ public class FollowServiceImpl
             throw new AppException(
                     ErrorCode.JOURNAL_ALREADY_FOLLOWED);
         }
-
+        Journal journal =
+                journalRepository
+                        .findById(
+                                request.getJournalId())
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.JOURNAL_NOT_FOUND));
         FollowJournal followJournal =
                 FollowJournal.builder()
-                        .journalId(
-                                request.getJournalId())
-                        .journalName(
-                                request.getJournalName())
+                        .journal(journal)
                         .user(user)
                         .build();
 
@@ -191,16 +199,18 @@ public class FollowServiceImpl
                                 .followId(
                                         journal.getFollowId())
                                 .journalId(
-                                        journal.getJournalId())
+                                        journal.getJournal()
+                                                .getJournalId())
                                 .journalName(
-                                        journal.getJournalName())
+                                        journal.getJournal()
+                                                .getName())
                                 .build())
                 .toList();
     }
     @Override
     @Transactional
     public void unfollowJournal(
-            String journalId,
+            Integer journalId,
             String email) {
 
         User user =
@@ -211,7 +221,7 @@ public class FollowServiceImpl
                                         ErrorCode.USER_NOT_FOUND));
         boolean exists =
                 followJournalRepository
-                        .existsByUserUserIdAndJournalId(
+                        .existsByUserUserIdAndJournalJournalId(
                                 user.getUserId(),
                                 journalId);
 
@@ -221,7 +231,7 @@ public class FollowServiceImpl
                     ErrorCode.JOURNAL_NOT_FOLLOWED);
         }
         followJournalRepository
-                .deleteByUserUserIdAndJournalId(
+                .deleteByUserUserIdAndJournalJournalId(
                         user.getUserId(),
                         journalId);
     }

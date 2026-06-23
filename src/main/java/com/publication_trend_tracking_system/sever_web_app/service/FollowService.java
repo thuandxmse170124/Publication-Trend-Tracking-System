@@ -18,7 +18,7 @@ public interface FollowService {
             String email);
 
     void unfollowTopic(
-            String topicId,
+            Integer topicId,
             String email);
 
     void followJournal(
@@ -30,7 +30,7 @@ public interface FollowService {
             String email);
 
     void unfollowJournal(
-            String journalId,
+            Integer journalId,
             String email);
 
     void followAuthor(
