@@ -63,27 +63,27 @@ public class Paper {
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "paper_authors",
-            joinColumns = @JoinColumn(name = "paper_id"),
-            inverseJoinColumns = @JoinColumn(name = "author_id")
+        name = "paper_authors",
+        joinColumns = @JoinColumn(name = "paper_id"),
+        inverseJoinColumns = @JoinColumn(name = "author_id")
     )
     @Builder.Default
     private Set<Author> authors = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "paper_keywords",
-            joinColumns = @JoinColumn(name = "paper_id"),
-            inverseJoinColumns = @JoinColumn(name = "keyword_id")
+        name = "paper_keywords",
+        joinColumns = @JoinColumn(name = "paper_id"),
+        inverseJoinColumns = @JoinColumn(name = "keyword_id")
     )
     @Builder.Default
     private Set<Keyword> keywords = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "paper_topics",
-            joinColumns = @JoinColumn(name = "paper_id"),
-            inverseJoinColumns = @JoinColumn(name = "topic_id")
+        name = "paper_topics",
+        joinColumns = @JoinColumn(name = "paper_id"),
+        inverseJoinColumns = @JoinColumn(name = "topic_id")
     )
     @Builder.Default
     private Set<Topic> topics = new HashSet<>();

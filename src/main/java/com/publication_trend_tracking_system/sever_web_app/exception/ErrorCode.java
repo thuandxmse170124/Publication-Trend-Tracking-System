@@ -49,6 +49,21 @@ public enum ErrorCode {
             "Old password incorrect",
             HttpStatus.BAD_REQUEST),
 
+    EMAIL_NOT_VERIFIED(
+            1105,
+            "Email is not verified",
+            HttpStatus.BAD_REQUEST),
+
+    OTP_INVALID(
+            1106,
+            "OTP is invalid",
+            HttpStatus.BAD_REQUEST),
+
+    OTP_EXPIRED(
+            1107,
+            "OTP has expired",
+            HttpStatus.BAD_REQUEST),
+
     // Validation
     FULLNAME_REQUIRED(
             1201,
@@ -56,15 +71,9 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST),
 
     INVALID_FULLNAME(
-            1201,
+            1202,
             "Full name must be between {min} and {max} characters",
             HttpStatus.BAD_REQUEST),
-
-    EMAIL_REQUIRED(
-            1207,
-            "Email is required",
-            HttpStatus.BAD_REQUEST),
-
     INVALID_EMAIL(
             1203,
             "Invalid email format",
@@ -73,16 +82,37 @@ public enum ErrorCode {
             1204,
             "Password is required",
             HttpStatus.BAD_REQUEST),
-
     INVALID_PASSWORD(
             1205,
             "Password must be at least {min} characters",
             HttpStatus.BAD_REQUEST),
-
     PASSWORD_INVALID_FORMAT(
             1206,
             "Password must contain at least one uppercase letter and one special character",
             HttpStatus.BAD_REQUEST),
+    EMAIL_REQUIRED(
+            1207,
+            "Email is required",
+            HttpStatus.BAD_REQUEST),
+    OTP_REQUIRED(
+            1208,
+            "OTP is required",
+            HttpStatus.BAD_REQUEST),
+    PASSWORD_NOT_MATCH(
+            1209,
+            "Password and confirm password do not match",
+            HttpStatus.BAD_REQUEST),
+
+    OLD_PASSWORD_REQUIRED(
+            1210,
+            "Old password is required",
+            HttpStatus.BAD_REQUEST),
+    CONFIRM_PASSWORD_REQUIRED(
+            1211,
+            "Confirm password is required",
+            HttpStatus.BAD_REQUEST),
+
+
     // Research Paper
     PAPER_NOT_FOUND(
             1301,
@@ -128,7 +158,57 @@ public enum ErrorCode {
     TOPIC_NOT_FOUND(
             1601,
             "Research topic not found",
-            HttpStatus.NOT_FOUND);
+            HttpStatus.NOT_FOUND),
+
+    AUTHOR_NOT_FOUND(
+            1701,
+            "Author not found",
+            HttpStatus.NOT_FOUND),
+
+    JOURNAL_NOT_FOUND(
+            1801,
+            "Journal not found",
+            HttpStatus.NOT_FOUND),
+
+    FIELD_NOT_FOUND(
+            1901,
+            "Research field not found",
+            HttpStatus.NOT_FOUND),
+
+    DOI_EXISTED(
+            1302,
+            "DOI already exists",
+            HttpStatus.BAD_REQUEST),
+
+    API_SOURCE_NOT_FOUND(
+            2001,
+            "API source not found",
+            HttpStatus.NOT_FOUND),
+
+    PREMIUM_NOT_FOUND(
+            3001,
+            "Premium package not found",
+            HttpStatus.NOT_FOUND),
+
+    DISCOUNT_NOT_FOUND(
+            3002,
+            "Discount not found",
+            HttpStatus.NOT_FOUND),
+
+    DISCOUNT_ALREADY_EXISTS(
+            3003,
+            "Discount name already exists",
+            HttpStatus.BAD_REQUEST),
+
+    DISCOUNT_EXPIRED(
+            3004,
+            "Discount has expired or is not active yet",
+            HttpStatus.BAD_REQUEST),
+
+    DISCOUNT_NOT_APPLICABLE(
+            3005,
+            "Discount is not applicable for this premium package",
+            HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
