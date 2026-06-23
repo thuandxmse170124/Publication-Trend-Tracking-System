@@ -140,7 +140,57 @@ public enum ErrorCode {
     AUTHOR_NOT_FOUND(
             1707,
             "Author not found",
-            HttpStatus.NOT_FOUND);
+            HttpStatus.NOT_FOUND),
+
+    AUTHOR_NOT_FOUND(
+            1701,
+            "Author not found",
+            HttpStatus.NOT_FOUND),
+
+    JOURNAL_NOT_FOUND(
+            1801,
+            "Journal not found",
+            HttpStatus.NOT_FOUND),
+
+    FIELD_NOT_FOUND(
+            1901,
+            "Research field not found",
+            HttpStatus.NOT_FOUND),
+
+    DOI_EXISTED(
+            1302,
+            "DOI already exists",
+            HttpStatus.BAD_REQUEST),
+
+    API_SOURCE_NOT_FOUND(
+            2001,
+            "API source not found",
+            HttpStatus.NOT_FOUND),
+
+    PREMIUM_NOT_FOUND(
+            3001,
+            "Premium package not found",
+            HttpStatus.NOT_FOUND),
+
+    DISCOUNT_NOT_FOUND(
+            3002,
+            "Discount not found",
+            HttpStatus.NOT_FOUND),
+
+    DISCOUNT_ALREADY_EXISTS(
+            3003,
+            "Discount name already exists",
+            HttpStatus.BAD_REQUEST),
+
+    DISCOUNT_EXPIRED(
+            3004,
+            "Discount has expired or is not active yet",
+            HttpStatus.BAD_REQUEST),
+
+    DISCOUNT_NOT_APPLICABLE(
+            3005,
+            "Discount is not applicable for this premium package",
+            HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
