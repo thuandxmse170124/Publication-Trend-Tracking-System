@@ -38,7 +38,18 @@ public enum ErrorCode {
             1102,
             "Email already exists",
             HttpStatus.BAD_REQUEST),
-
+    USER_INACTIVE(
+            1108,
+            "User account is inactive",
+            HttpStatus.FORBIDDEN),
+    CANNOT_MODIFY_ADMIN(
+            1110,
+            "Admin account cannot be modified",
+            HttpStatus.BAD_REQUEST),
+    USER_BANNED(
+            1109,
+            "User account has been banned",
+            HttpStatus.FORBIDDEN),
     ROLE_NOT_FOUND(
             1103,
             "Role not found",
