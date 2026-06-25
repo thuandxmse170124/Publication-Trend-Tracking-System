@@ -21,18 +21,19 @@ import com.publication_trend_tracking_system.sever_web_app.service.Authenticatio
 import com.publication_trend_tracking_system.sever_web_app.service.EmailService;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuthenticationServiceImpl
         implements AuthenticationService {
 
@@ -186,58 +187,74 @@ public class AuthenticationServiceImpl
     public void forgotPassword(
             ForgotPasswordRequest request) {
 
-        userRepository
-                .findByEmail(request.getEmail())
-                .ifPresent(user -> {
+        User user =
+                userRepository
+                        .findByEmail(request.getEmail())
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
 
-                    String token =
-                            UUID.randomUUID().toString();
+        // Xóa OTP cũ
+        passwordResetTokenRepository
+                .findByUser(user)
+                .ifPresent(
+                        passwordResetTokenRepository::delete
+                );
 
-                    PasswordResetToken resetToken =
-                            PasswordResetToken.builder()
-                                    .token(token)
-                                    .expiryTime(
-                                            LocalDateTime.now()
-                                                    .plusMinutes(15))
-                                    .user(user)
-                                    .build();
+        String otp =
+                String.valueOf(
+                        ThreadLocalRandom.current()
+                                .nextInt(100000, 999999));
 
-                    passwordResetTokenRepository
-                            .save(resetToken);
+        PasswordResetToken resetToken =
+                PasswordResetToken.builder()
+                        .otpCode(otp)
+                        .expiryTime(
+                                LocalDateTime.now()
+                                        .plusMinutes(5))
+                        .user(user)
+                        .build();
 
-                    String resetLink =
-                            "http://localhost:3000/reset-password?token="
-                                    + token;
+        // Lưu OTP mới
+        passwordResetTokenRepository
+                .save(resetToken);
 
-                    emailService.sendEmail(
-                            user.getEmail(),
-                            "Reset Password",
-                            "Click the link below to reset your password:\n"
-                                    + resetLink);
-                });
+        // Gửi email
+        emailService.sendEmail(
+                user.getEmail(),
+                "Password Reset OTP",
+                "Your OTP code is: "
+                        + otp
+                        + "\nOTP expires in 5 minutes."
+        );
     }
-
     @Override
     public void resetPassword(
             ResetPasswordRequest request) {
 
-        PasswordResetToken resetToken =
+        if (!request.getNewPassword()
+                .equals(request.getConfirmPassword())) {
+
+            throw new AppException(
+                    ErrorCode.PASSWORD_NOT_MATCH);
+        }
+
+        PasswordResetToken otpRecord =
                 passwordResetTokenRepository
-                        .findByToken(
-                                request.getToken())
+                        .findByOtpCode(
+                                request.getOtp())
                         .orElseThrow(() ->
                                 new AppException(
-                                        ErrorCode.INVALID_TOKEN));
+                                        ErrorCode.OTP_INVALID));
 
-        if (resetToken.getExpiryTime()
+        if (otpRecord.getExpiryTime()
                 .isBefore(LocalDateTime.now())) {
 
             throw new AppException(
-                    ErrorCode.TOKEN_EXPIRED);
+                    ErrorCode.OTP_EXPIRED);
         }
 
-        User user =
-                resetToken.getUser();
+        User user = otpRecord.getUser();
 
         user.setPasswordHash(
                 passwordEncoder.encode(
@@ -246,7 +263,7 @@ public class AuthenticationServiceImpl
         userRepository.save(user);
 
         passwordResetTokenRepository
-                .delete(resetToken);
+                .delete(otpRecord);
     }
 
 
