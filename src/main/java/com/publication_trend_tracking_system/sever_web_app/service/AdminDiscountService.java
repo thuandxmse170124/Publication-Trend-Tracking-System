@@ -5,11 +5,28 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.Discount
 
 import java.util.List;
 
-public interface DiscountService {
-
+public interface AdminDiscountService {
     DiscountResponse createDiscount(
             CreateDiscountRequest request
     );
 
     List<DiscountResponse> getAllDiscounts();
+
+    void assignDiscount(
+            Long premiumId,
+            Long discountId
+    );
+    DiscountResponse updateDiscount(
+            Long discountId,
+            CreateDiscountRequest request
+    );
+
+    void deleteDiscount(
+            Long discountId
+    );
+
+    void removeDiscountFromPremium(
+            Long premiumId,
+            Long discountId
+    );
 }

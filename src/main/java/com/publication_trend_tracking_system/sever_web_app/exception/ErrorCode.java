@@ -122,8 +122,16 @@ public enum ErrorCode {
             1211,
             "Confirm password is required",
             HttpStatus.BAD_REQUEST),
-
-
+//Discount
+    DISCOUNT_ALREADY_ASSIGNED(
+            3015,
+            "Discount already assigned",
+            HttpStatus.BAD_REQUEST),
+    DISCOUNT_NOT_ASSIGNED(
+            3006,
+            "Discount is not assigned to this premium package",
+            HttpStatus.BAD_REQUEST
+    ),
     // Research Paper
     PAPER_NOT_FOUND(
             1301,
