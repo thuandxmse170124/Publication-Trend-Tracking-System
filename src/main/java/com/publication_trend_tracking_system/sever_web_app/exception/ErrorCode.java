@@ -112,6 +112,20 @@ public enum ErrorCode {
             "Confirm password is required",
             HttpStatus.BAD_REQUEST),
 
+    INVALID_TOKEN(
+            1704,
+            "Invalid token",
+            HttpStatus.BAD_REQUEST),
+
+    TOKEN_EXPIRED(
+            1705,
+            "Token expired",
+            HttpStatus.BAD_REQUEST),
+
+    TOKEN_REQUIRED(
+            1706,
+            "Token is required",
+            HttpStatus.BAD_REQUEST),
 
     // Research Paper
     PAPER_NOT_FOUND(

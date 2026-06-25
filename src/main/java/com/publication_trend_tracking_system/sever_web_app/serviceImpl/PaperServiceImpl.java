@@ -110,13 +110,14 @@ public class PaperServiceImpl implements PaperService {
             String journal,
             Integer year,
             Integer fieldId,
+            Integer topicId,
             Pageable pageable) {
 
         String kwParam = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
         String authParam = (author == null || author.isBlank()) ? null : author.trim();
         String jParam = (journal == null || journal.isBlank()) ? null : journal.trim();
 
-        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, pageable);
+        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, topicId, pageable);
 
         // Advanced On-demand Sync: If keyword search returned 0 results, trigger an on-demand sync for this keyword
         if (papers.isEmpty() && kwParam != null) {
@@ -129,7 +130,7 @@ public class PaperServiceImpl implements PaperService {
                 if (activeSource != null) {
                     syncService.syncFromSource(activeSource.getSourceId(), null, kwParam);
                     // Query database again after sync completes
-                    papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, pageable);
+                    papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, topicId, pageable);
                 }
             } catch (Exception e) {
                 // Log and swallow exception so search still works even if sync fails
@@ -137,7 +138,6 @@ public class PaperServiceImpl implements PaperService {
                 // log.error("Failed to run on-demand sync for keyword: " + kwParam, e);
             }
         }
-
         return papers.map(this::toResponse);
     }
 
