@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "discounts")
@@ -33,4 +35,7 @@ public class Discount {
 
     @Column(name = "is_active")
     private Boolean isActive;
+    @ManyToMany(mappedBy = "discounts")
+    @Builder.Default
+    private Set<Premium> premiums = new HashSet<>();
 }
