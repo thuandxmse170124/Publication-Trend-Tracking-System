@@ -38,6 +38,15 @@ public class TopicController {
                 .build();
     }
 
+    @GetMapping("/trending")
+    public ApiResponse<java.util.List<TopicResponse>> getTrendingTopics() {
+        return ApiResponse.<java.util.List<TopicResponse>>builder()
+                .code(1000)
+                .message("Get trending topics success")
+                .result(topicService.getTrendingTopics())
+                .build();
+    }
+
     @GetMapping("/{topicId}")
     public ApiResponse<TopicResponse> getTopicById(@PathVariable Integer topicId) {
         return ApiResponse.<TopicResponse>builder()
