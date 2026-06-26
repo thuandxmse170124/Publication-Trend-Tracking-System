@@ -79,7 +79,7 @@ public enum ErrorCode {
             1108,
             "OTP is required",
             HttpStatus.BAD_REQUEST),
-    // Validation
+  
     FULLNAME_REQUIRED(
             1201,
             "Full name is required",
@@ -123,30 +123,14 @@ public enum ErrorCode {
             "Confirm password is required",
             HttpStatus.BAD_REQUEST),
 
-//Discount
-    DISCOUNT_ALREADY_ASSIGNED(
-            3015,
-            "Discount already assigned",
-            HttpStatus.BAD_REQUEST),
-    DISCOUNT_NOT_ASSIGNED(
-            3006,
-            "Discount is not assigned to this premium package",
-            HttpStatus.BAD_REQUEST
-    ),
-
-    INVALID_TOKEN(
-            1704,
-            "Invalid token",
+    OTP_INVALID(
+            1003,
+            "Invalid OTP",
             HttpStatus.BAD_REQUEST),
 
-    TOKEN_EXPIRED(
-            1705,
-            "Token expired",
-            HttpStatus.BAD_REQUEST),
-
-    TOKEN_REQUIRED(
-            1706,
-            "Token is required",
+    OTP_EXPIRED(
+            1004,
+            "OTP has expired",
             HttpStatus.BAD_REQUEST),
 
 //    Payment
@@ -215,9 +199,39 @@ public enum ErrorCode {
             1601,
             "Research topic not found",
             HttpStatus.NOT_FOUND),
+    // Follow
+    TOPIC_ALREADY_FOLLOWED(
+        1701,
+                "Topic already followed",
+        HttpStatus.BAD_REQUEST),
+
+    TOPIC_NOT_FOLLOWED(
+        1702,
+                "You are not following this topic",
+        HttpStatus.BAD_REQUEST),
+
+    JOURNAL_ALREADY_FOLLOWED(
+        1703,
+                "Journal already followed",
+        HttpStatus.BAD_REQUEST),
+
+    JOURNAL_NOT_FOLLOWED(
+        1704,
+                "You are not following this journal",
+        HttpStatus.BAD_REQUEST),
+
+    AUTHOR_ALREADY_FOLLOWED(
+            1705,
+            "Author already followed",
+            HttpStatus.BAD_REQUEST),
+
+    AUTHOR_NOT_FOLLOWED(
+            1706,
+            "You are not following this author",
+            HttpStatus.BAD_REQUEST),
 
     AUTHOR_NOT_FOUND(
-            1701,
+            1707,
             "Author not found",
             HttpStatus.NOT_FOUND),
 
