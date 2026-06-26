@@ -9,6 +9,7 @@ import com.publication_trend_tracking_system.sever_web_app.entity.PendingRegistr
 import com.publication_trend_tracking_system.sever_web_app.entity.Role;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.enums.RoleName;
+import com.publication_trend_tracking_system.sever_web_app.enums.UserStatus;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.PasswordResetTokenRepository;
@@ -159,8 +160,22 @@ public class AuthenticationServiceImpl
                                 request.getEmail())
                         .orElseThrow(() ->
                                 new AppException(
-                                        ErrorCode.USER_NOT_FOUND));
+                                        ErrorCode.UNAUTHENTICATED));
+        if (user.getStatus()
+                == UserStatus.INACTIVE) {
 
+            throw new AppException(
+                    ErrorCode.USER_INACTIVE
+            );
+        }
+
+        if (user.getStatus()
+                == UserStatus.BANNED) {
+
+            throw new AppException(
+                    ErrorCode.USER_BANNED
+            );
+        }
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),

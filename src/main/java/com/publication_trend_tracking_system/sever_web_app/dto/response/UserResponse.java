@@ -1,5 +1,6 @@
 package com.publication_trend_tracking_system.sever_web_app.dto.response;
 
+import com.publication_trend_tracking_system.sever_web_app.enums.UserStatus;
 import lombok.*;
 
 @Getter
@@ -16,4 +17,6 @@ public class UserResponse {
     private String email;
 
     private String role;
+
+    private UserStatus status;
 }
