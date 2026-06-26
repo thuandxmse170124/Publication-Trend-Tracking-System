@@ -19,6 +19,37 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
 
+    @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(p)) " +
+           "FROM Paper p " +
+           "LEFT JOIN p.authors a " +
+           "LEFT JOIN p.journal j " +
+           "LEFT JOIN p.field f " +
+           "LEFT JOIN p.topics t " +
+           "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR p.paperAbstract LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
+           "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
+           "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
+           "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
+           "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
+           "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
+           "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
+           "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
+           "AND (:topicId IS NULL OR t.topicId = :topicId) " +
+           "GROUP BY p.publicationYear " +
+           "ORDER BY p.publicationYear ASC")
+    List<com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse> countPapersByYearWithFilters(
+            @org.springframework.data.repository.query.Param("keyword") String keyword,
+            @org.springframework.data.repository.query.Param("author") String author,
+            @org.springframework.data.repository.query.Param("journal") String journal,
+            @org.springframework.data.repository.query.Param("fromYear") Integer fromYear,
+            @org.springframework.data.repository.query.Param("toYear") Integer toYear,
+            @org.springframework.data.repository.query.Param("institution") String institution,
+            @org.springframework.data.repository.query.Param("types") List<String> types,
+            @org.springframework.data.repository.query.Param("isOpenAccess") Boolean isOpenAccess,
+            @org.springframework.data.repository.query.Param("fieldId") Integer fieldId,
+            @org.springframework.data.repository.query.Param("topicId") Integer topicId
+    );
+
     @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
     java.util.List<Object[]> findDistinctYearsWithCount();
 
