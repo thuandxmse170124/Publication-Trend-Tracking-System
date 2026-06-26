@@ -19,6 +19,7 @@ import com.publication_trend_tracking_system.sever_web_app.security.JwtService;
 
 import com.publication_trend_tracking_system.sever_web_app.service.AuthenticationService;
 import com.publication_trend_tracking_system.sever_web_app.service.EmailService;
+import com.publication_trend_tracking_system.sever_web_app.service.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -52,7 +53,7 @@ public class AuthenticationServiceImpl
     private final JwtService jwtService;
 
     private final PasswordResetTokenRepository passwordResetTokenRepository;
-
+    private final UserSubscriptionService userSubscriptionService;
 
     @Override
     public void register(RegisterRequest request) {
@@ -172,13 +173,17 @@ public class AuthenticationServiceImpl
         String token =
                 jwtService.generateToken(user);
 
+        boolean premium =
+                userSubscriptionService
+                        .isPremium(
+                                user.getUserId()
+                        );
+
         return AuthenticationResponse
                 .builder()
                 .token(token)
-                .role(
-                        user.getRole()
-                                .getRoleName())
-                .premium(false)
+                .role(user.getRole().getRoleName())
+                .premium(premium)
                 .build();
     }
 

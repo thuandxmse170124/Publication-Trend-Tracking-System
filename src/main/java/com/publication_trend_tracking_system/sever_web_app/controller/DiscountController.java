@@ -4,6 +4,7 @@ import com.publication_trend_tracking_system.sever_web_app.dto.request.CreateDis
 import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.DiscountResponse;
 import com.publication_trend_tracking_system.sever_web_app.service.DiscountService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,6 +13,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/discounts")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "api")
+
 public class DiscountController {
 
     private final DiscountService discountService;
