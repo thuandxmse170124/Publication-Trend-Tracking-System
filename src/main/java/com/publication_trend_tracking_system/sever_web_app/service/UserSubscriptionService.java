@@ -1,31 +1,11 @@
 package com.publication_trend_tracking_system.sever_web_app.service;
 
-import com.publication_trend_tracking_system.sever_web_app.repository.UserSubscriptionRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.CurrentSubscriptionResponse;
 
-import java.time.LocalDateTime;
+public interface UserSubscriptionService {
 
-@Service
-@RequiredArgsConstructor
-public class UserSubscriptionService {
+    boolean isPremium(Long userId);
 
-    private final UserSubscriptionRepository
-            userSubscriptionRepository;
+    CurrentSubscriptionResponse getCurrentSubscription(Long userId);
 
-    public boolean isPremium(
-            Long userId
-    ) {
-
-        return userSubscriptionRepository
-                .findFirstByUser_UserIdAndStatusOrderByEndDateDesc(
-                        userId,
-                        "ACTIVE"
-                )
-                .filter(subscription ->
-                        subscription.getEndDate()
-                                .isAfter(
-                                        LocalDateTime.now()))
-                .isPresent();
-    }
 }
