@@ -22,6 +22,11 @@ public class JournalServiceImpl implements JournalService {
         return toResponse(journal);
     }
 
+    @Override
+    public java.util.List<JournalResponse> getAllJournals() {
+        return journalRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
     private JournalResponse toResponse(Journal journal) {
         return JournalResponse.builder()
                 .journalId(journal.getJournalId())
