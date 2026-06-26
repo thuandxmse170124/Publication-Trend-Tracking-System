@@ -133,7 +133,6 @@ public enum ErrorCode {
             "Discount is not assigned to this premium package",
             HttpStatus.BAD_REQUEST
     ),
-=======
 
     INVALID_TOKEN(
             1704,
