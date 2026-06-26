@@ -31,11 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
-
-### CodeGraph ###
-.codegraph/
-codegraph_report.md
-
 ### Local Config ###
 src/main/resources/application-local.yaml
 ### Logs ###

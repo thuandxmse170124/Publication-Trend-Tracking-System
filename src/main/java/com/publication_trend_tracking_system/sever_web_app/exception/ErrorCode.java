@@ -38,7 +38,18 @@ public enum ErrorCode {
             1102,
             "Email already exists",
             HttpStatus.BAD_REQUEST),
-
+    USER_INACTIVE(
+            1108,
+            "User account is inactive",
+            HttpStatus.FORBIDDEN),
+    CANNOT_MODIFY_ADMIN(
+            1110,
+            "Admin account cannot be modified",
+            HttpStatus.BAD_REQUEST),
+    USER_BANNED(
+            1109,
+            "User account has been banned",
+            HttpStatus.FORBIDDEN),
     ROLE_NOT_FOUND(
             1103,
             "Role not found",
@@ -49,7 +60,26 @@ public enum ErrorCode {
             "Old password incorrect",
             HttpStatus.BAD_REQUEST),
 
-    // Validation
+    EMAIL_NOT_VERIFIED(
+            1105,
+            "Email is not verified",
+            HttpStatus.BAD_REQUEST),
+
+    OTP_INVALID(
+            1106,
+            "OTP is invalid",
+            HttpStatus.BAD_REQUEST),
+
+    OTP_EXPIRED(
+            1107,
+            "OTP has expired",
+            HttpStatus.BAD_REQUEST),
+
+    OTP_REQUIRED(
+            1108,
+            "OTP is required",
+            HttpStatus.BAD_REQUEST),
+  
     FULLNAME_REQUIRED(
             1201,
             "Full name is required",
@@ -79,10 +109,6 @@ public enum ErrorCode {
             1207,
             "Email is required",
             HttpStatus.BAD_REQUEST),
-    OTP_REQUIRED(
-            1208,
-            "OTP is required",
-            HttpStatus.BAD_REQUEST),
     PASSWORD_NOT_MATCH(
             1209,
             "Password and confirm password do not match",
@@ -107,6 +133,49 @@ public enum ErrorCode {
             "OTP has expired",
             HttpStatus.BAD_REQUEST),
 
+//    Payment
+    INVOICE_NOT_FOUND(
+            4001,
+            "Invoice not found",
+            HttpStatus.NOT_FOUND
+    ),
+
+    INVALID_INVOICE_STATUS(
+            4002,
+            "Invoice status is invalid",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    PAYMENT_CREATE_FAILED(
+            4003,
+            "Create payment failed",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    PAYMENT_TRANSACTION_NOT_FOUND(
+            4004,
+            "Payment transaction not found",
+            HttpStatus.NOT_FOUND
+    ),
+
+    // Premium & Subscription
+    SUBSCRIPTION_NOT_FOUND(
+            4101,
+            "Subscription not found",
+            HttpStatus.NOT_FOUND
+    ),
+
+    PREMIUM_REQUIRED(
+            4102,
+            "Premium subscription required",
+            HttpStatus.FORBIDDEN
+    ),
+
+    SUBSCRIPTION_EXPIRED(
+            4103,
+            "Premium subscription has expired",
+            HttpStatus.FORBIDDEN
+    ),
     // Research Paper
     PAPER_NOT_FOUND(
             1301,

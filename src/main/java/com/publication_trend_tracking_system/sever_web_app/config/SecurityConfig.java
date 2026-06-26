@@ -84,13 +84,15 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/admin/**")
                         .hasRole("ADMIN")
-
+                        .requestMatchers(
+                                "/api/payos/**",
+                                "/api/payment/webhook")
+                        .permitAll()
                         .requestMatchers("/api/member/**")
                         .hasAnyRole(
                                 "MEMBER",
                                 "ADMIN"
                         )
-
                         .anyRequest()
                         .authenticated()
 

@@ -35,8 +35,13 @@ public class PaperController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String author,
             @RequestParam(required = false) String journal,
-            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer fromYear,
+            @RequestParam(required = false) Integer toYear,
+            @RequestParam(required = false) String institution,
+            @RequestParam(required = false) java.util.List<String> types,
+            @RequestParam(required = false) Boolean isOpenAccess,
             @RequestParam(required = false) Integer fieldId,
+            @RequestParam(required = false) Integer topicId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -50,7 +55,7 @@ public class PaperController {
         return ApiResponse.<Page<PaperResponse>>builder()
                 .code(1000)
                 .message("Get papers success")
-                .result(paperService.searchPapers(keyword, author, journal, year, fieldId, pageable))
+                .result(paperService.searchPapers(keyword, author, journal, fromYear, toYear, institution, types, isOpenAccess, fieldId, topicId, pageable))
                 .build();
     }
 
@@ -76,12 +81,47 @@ public class PaperController {
     }
 
     @DeleteMapping("/{paperId}")
-    public ApiResponse<?> deletePaper(@PathVariable Long paperId) {
+    public ApiResponse<Void> deletePaper(@PathVariable Long paperId) {
         paperService.deletePaper(paperId);
-
-        return ApiResponse.builder()
+        return ApiResponse.<Void>builder()
                 .code(1000)
                 .message("Delete paper success")
+                .build();
+    }
+
+    @GetMapping("/filters/keywords")
+    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterKeywords() {
+        return ApiResponse.<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>>builder()
+                .code(1000)
+                .message("Get filter keywords success")
+                .result(paperService.getFilterKeywords())
+                .build();
+    }
+
+    @GetMapping("/filters/journals")
+    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterJournals() {
+        return ApiResponse.<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>>builder()
+                .code(1000)
+                .message("Get filter journals success")
+                .result(paperService.getFilterJournals())
+                .build();
+    }
+
+    @GetMapping("/filters/years")
+    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterYears() {
+        return ApiResponse.<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>>builder()
+                .code(1000)
+                .message("Get filter years success")
+                .result(paperService.getFilterYears())
+                .build();
+    }
+
+    @GetMapping("/filters/topics")
+    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterTopics() {
+        return ApiResponse.<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>>builder()
+                .code(1000)
+                .message("Get filter topics success")
+                .result(paperService.getFilterTopics())
                 .build();
     }
 }
