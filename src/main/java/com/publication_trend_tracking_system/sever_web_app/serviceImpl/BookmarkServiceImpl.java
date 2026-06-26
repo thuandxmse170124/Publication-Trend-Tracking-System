@@ -1,10 +1,11 @@
 package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.request.CreateFolderRequest;
-import com.publication_trend_tracking_system.sever_web_app.repository.BookmarkPaperRepository;
 import com.publication_trend_tracking_system.sever_web_app.entity.Paper;
+import com.publication_trend_tracking_system.sever_web_app.repository.BookmarkPaperRepository;
 import com.publication_trend_tracking_system.sever_web_app.repository.PaperRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.BookmarkService;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.BookmarkPaperResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
@@ -295,5 +296,46 @@ public class BookmarkServiceImpl
                 request.getNote());
 
         bookmarkPaperRepository.save(paper);
+    }
+    @Override
+    public List<BookmarkPaperResponse>
+    getFolderPapers(
+            Long folderId,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        return bookmarkPaperRepository
+                .findByFolderFolderId(folderId)
+                .stream()
+                .map(bookmark -> {
+
+                    Paper paper =
+                            paperRepository
+                                    .findById(
+                                            bookmark.getPaperId())
+                                    .orElse(null);
+
+                    return BookmarkPaperResponse.builder()
+                            .bookmarkId(
+                                    bookmark.getBookmarkId())
+                            .paperId(
+                                    bookmark.getPaperId())
+                            .title(
+                                    paper != null
+                                            ? paper.getTitle()
+                                            : null)
+                            .note(
+                                    bookmark.getNote())
+                            .savedAt(
+                                    bookmark.getSavedAt())
+                            .build();
+                })
+                .toList();
     }
 }

@@ -4,6 +4,7 @@ import com.publication_trend_tracking_system.sever_web_app.dto.request.CreateFol
 import com.publication_trend_tracking_system.sever_web_app.dto.request.SavePaperRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.request.UpdateFolderRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.request.UpdateNoteRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.BookmarkPaperResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.FolderResponse;
 import java.util.List;
 public interface BookmarkService {
@@ -34,5 +35,9 @@ public interface BookmarkService {
     void updateNote(
             Long bookmarkId,
             UpdateNoteRequest request,
+            String email);
+    List<BookmarkPaperResponse>
+    getFolderPapers(
+            Long folderId,
             String email);
 }

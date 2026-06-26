@@ -125,4 +125,18 @@ public class BookmarkController {
                 .message("Note updated successfully")
                 .build();
     }
+    @GetMapping("/folders/{folderId}/papers")
+    public ApiResponse<?> getFolderPapers(
+            @PathVariable Long folderId,
+            Authentication authentication) {
+
+        return ApiResponse.builder()
+                .code(1000)
+                .message("Success")
+                .result(
+                        bookmarkService.getFolderPapers(
+                                folderId,
+                                authentication.getName()))
+                .build();
+    }
 }
