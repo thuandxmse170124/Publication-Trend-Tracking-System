@@ -19,6 +19,22 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
 
+    @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
+    java.util.List<Object[]> findDistinctYearsWithCount();
+
+    @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.TopKeywordResponse(k.keywordName, COUNT(p.paperId)) " +
+           "FROM Paper p JOIN p.keywords k " +
+           "GROUP BY k.keywordName " +
+           "ORDER BY COUNT(p.paperId) DESC")
+    java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.TopKeywordResponse> findTopKeywords(org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.TopJournalResponse(j.name, COUNT(p.paperId)) " +
+           "FROM Paper p JOIN p.journal j " +
+           "WHERE (:fieldId IS NULL OR p.field.fieldId = :fieldId) " +
+           "GROUP BY j.name " +
+           "ORDER BY COUNT(p.paperId) DESC")
+    java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.TopJournalResponse> findTopJournalsByPaperCount(@Param("fieldId") Integer fieldId, org.springframework.data.domain.Pageable pageable);
+
     @Query("SELECT DISTINCT p FROM Paper p " +
            "LEFT JOIN p.authors a " +
            "LEFT JOIN p.journal j " +
