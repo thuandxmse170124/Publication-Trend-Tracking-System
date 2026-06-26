@@ -9,6 +9,7 @@ import com.publication_trend_tracking_system.sever_web_app.entity.PendingRegistr
 import com.publication_trend_tracking_system.sever_web_app.entity.Role;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.enums.RoleName;
+import com.publication_trend_tracking_system.sever_web_app.enums.UserStatus;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.PasswordResetTokenRepository;
@@ -19,6 +20,7 @@ import com.publication_trend_tracking_system.sever_web_app.security.JwtService;
 
 import com.publication_trend_tracking_system.sever_web_app.service.AuthenticationService;
 import com.publication_trend_tracking_system.sever_web_app.service.EmailService;
+import com.publication_trend_tracking_system.sever_web_app.service.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 
 
@@ -53,7 +55,7 @@ public class AuthenticationServiceImpl
     private final JwtService jwtService;
 
     private final PasswordResetTokenRepository passwordResetTokenRepository;
-
+    private final UserSubscriptionService userSubscriptionService;
 
     @Override
     public void register(RegisterRequest request) {
@@ -159,8 +161,22 @@ public class AuthenticationServiceImpl
                                 request.getEmail())
                         .orElseThrow(() ->
                                 new AppException(
-                                        ErrorCode.USER_NOT_FOUND));
+                                        ErrorCode.UNAUTHENTICATED));
+        if (user.getStatus()
+                == UserStatus.INACTIVE) {
 
+            throw new AppException(
+                    ErrorCode.USER_INACTIVE
+            );
+        }
+
+        if (user.getStatus()
+                == UserStatus.BANNED) {
+
+            throw new AppException(
+                    ErrorCode.USER_BANNED
+            );
+        }
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -173,13 +189,17 @@ public class AuthenticationServiceImpl
         String token =
                 jwtService.generateToken(user);
 
+        boolean premium =
+                userSubscriptionService
+                        .isPremium(
+                                user.getUserId()
+                        );
+
         return AuthenticationResponse
                 .builder()
                 .token(token)
-                .role(
-                        user.getRole()
-                                .getRoleName())
-                .premium(false)
+                .role(user.getRole().getRoleName())
+                .premium(premium)
                 .build();
     }
 
