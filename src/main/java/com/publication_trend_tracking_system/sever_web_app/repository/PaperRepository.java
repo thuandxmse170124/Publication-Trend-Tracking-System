@@ -31,8 +31,7 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
            "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
            "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
            "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
-           "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
-           "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
+            "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
            "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
            "AND (:topicId IS NULL OR t.topicId = :topicId) " +
            "GROUP BY p.publicationYear " +
@@ -45,7 +44,6 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @org.springframework.data.repository.query.Param("toYear") Integer toYear,
             @org.springframework.data.repository.query.Param("institution") String institution,
             @org.springframework.data.repository.query.Param("types") List<String> types,
-            @org.springframework.data.repository.query.Param("isOpenAccess") Boolean isOpenAccess,
             @org.springframework.data.repository.query.Param("fieldId") Integer fieldId,
             @org.springframework.data.repository.query.Param("topicId") Integer topicId
     );
