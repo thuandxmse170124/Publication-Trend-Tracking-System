@@ -25,6 +25,7 @@ public interface PaperService {
             String journal,
             Integer year,
             Integer fieldId,
+            Integer topicId,
             Pageable pageable
     );
 }

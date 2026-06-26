@@ -90,7 +90,9 @@ public class SecurityConfig {
                                 "MEMBER",
                                 "ADMIN"
                         )
-
+                        .requestMatchers(
+                                "/premiums"
+                        ).permitAll()
                         .anyRequest()
                         .authenticated()
 
