@@ -122,17 +122,6 @@ public enum ErrorCode {
             1211,
             "Confirm password is required",
             HttpStatus.BAD_REQUEST),
-
-    OTP_INVALID(
-            1003,
-            "Invalid OTP",
-            HttpStatus.BAD_REQUEST),
-
-    OTP_EXPIRED(
-            1004,
-            "OTP has expired",
-            HttpStatus.BAD_REQUEST),
-
 //    Payment
     INVOICE_NOT_FOUND(
             4001,
