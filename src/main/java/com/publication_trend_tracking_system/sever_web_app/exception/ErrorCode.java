@@ -109,10 +109,6 @@ public enum ErrorCode {
             1207,
             "Email is required",
             HttpStatus.BAD_REQUEST),
-    OTP_REQUIRED(
-            1208,
-            "OTP is required",
-            HttpStatus.BAD_REQUEST),
     PASSWORD_NOT_MATCH(
             1209,
             "Password and confirm password do not match",

@@ -3,7 +3,6 @@ package com.publication_trend_tracking_system.sever_web_app.controller;
 import com.publication_trend_tracking_system.sever_web_app.dto.request.CreateDiscountRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.DiscountResponse;
-import com.publication_trend_tracking_system.sever_web_app.service.DiscountService;
 import com.publication_trend_tracking_system.sever_web_app.service.AdminDiscountService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
