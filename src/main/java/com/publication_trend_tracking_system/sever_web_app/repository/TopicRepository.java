@@ -10,7 +10,15 @@ import java.util.Optional;
 
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, Integer> {
-    Optional<Topic> findByTopicNameIgnoreCase(String topicName);
+    Optional<Topic> findByTopicName(String topicName);
+
+    @Query(value = "SELECT t.topic_id, t.topic_name, COUNT(ft.user_id) as follower_count " +
+                   "FROM topics t " +
+                   "LEFT JOIN follow_topic ft ON t.topic_id = ft.topic_id " +
+                   "GROUP BY t.topic_id, t.topic_name " +
+                   "ORDER BY follower_count DESC " +
+                   "OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY", nativeQuery = true)
+    java.util.List<Object[]> findTop5TrendingTopics();
 
     @Query("SELECT COUNT(p) FROM Paper p JOIN p.topics t WHERE t.topicId = :topicId")
     long countPapersByTopicId(@Param("topicId") Integer topicId);

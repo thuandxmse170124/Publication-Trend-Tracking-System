@@ -3,7 +3,7 @@ package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.PersonalStatsResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.SystemStatsResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicResponse;
-import com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse;
+
 import com.publication_trend_tracking_system.sever_web_app.entity.Topic;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
@@ -34,12 +34,11 @@ public class DashboardServiceImpl implements DashboardService {
     public SystemStatsResponse getSystemStats() {
         long totalPapers = paperRepository.count();
         
-        List<Topic> topTopicsEntity = topicRepository.findTop5TrendingTopics();
-        List<TopicResponse> topTopics = topTopicsEntity.stream()
-                .map(t -> TopicResponse.builder()
-                        .topicId(t.getTopicId())
-                        .topicName(t.getTopicName())
-                        .description(t.getDescription())
+        List<Object[]> topTopicsRaw = topicRepository.findTop5TrendingTopics();
+        List<TopicResponse> topTopics = topTopicsRaw.stream()
+                .map(obj -> TopicResponse.builder()
+                        .topicId((Integer) obj[0])
+                        .topicName((String) obj[1])
                         .build())
                 .collect(Collectors.toList());
 
@@ -86,15 +85,5 @@ public class DashboardServiceImpl implements DashboardService {
                 .build();
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<YearCountResponse> getTrendChartData(String keyword, String author, String journal, Integer fromYear, Integer toYear, String institution, List<String> types, Boolean isOpenAccess, Integer fieldId, Integer topicId) {
-        String kwParam = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
-        String authParam = (author == null || author.isBlank()) ? null : author.trim();
-        String jParam = (journal == null || journal.isBlank()) ? null : journal.trim();
-        String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
-        List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
-        return paperRepository.countPapersByYearWithFilters(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId);
-    }
 }

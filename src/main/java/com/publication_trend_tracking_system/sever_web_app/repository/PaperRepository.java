@@ -19,6 +19,12 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
 
+    @Query(value = "SELECT COUNT(*) FROM papers WHERE YEAR(created_at) = YEAR(GETDATE()) AND MONTH(created_at) = MONTH(GETDATE())", nativeQuery = true)
+    long countPapersThisMonth();
+
+    @Query(value = "SELECT COUNT(*) FROM papers WHERE YEAR(created_at) = YEAR(DATEADD(month, -1, GETDATE())) AND MONTH(created_at) = MONTH(DATEADD(month, -1, GETDATE()))", nativeQuery = true)
+    long countPapersLastMonth();
+
     @Query("SELECT DISTINCT p FROM Paper p " +
            "LEFT JOIN p.authors a " +
            "LEFT JOIN p.journal j " +
