@@ -338,4 +338,132 @@ public class BookmarkServiceImpl
                 })
                 .toList();
     }
+    @Override
+    public boolean isBookmarked(
+            Long paperId,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        return bookmarkPaperRepository
+                .existsByUserUserIdAndPaperIdAndFolderIsNull(
+                        user.getUserId(),
+                        paperId);
+    }
+    @Override
+    public void removeBookmark(
+            Long paperId,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        boolean exists =
+                bookmarkPaperRepository
+                        .existsByUserUserIdAndPaperIdAndFolderIsNull(
+                                user.getUserId(),
+                                paperId);
+
+        if (!exists) {
+            throw new AppException(
+                    ErrorCode.BOOKMARK_NOT_FOUND);
+        }
+
+        bookmarkPaperRepository
+                .deleteByUserUserIdAndPaperIdAndFolderIsNull(
+                        user.getUserId(),
+                        paperId);
+    }
+    @Override
+    public List<BookmarkPaperResponse>
+    getBookmarks(
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        return bookmarkPaperRepository
+                .findByUserUserIdAndFolderIsNull(
+                        user.getUserId())
+                .stream()
+                .map(bookmark -> {
+
+                    Paper paper =
+                            paperRepository
+                                    .findById(
+                                            bookmark.getPaperId())
+                                    .orElse(null);
+
+                    return BookmarkPaperResponse.builder()
+                            .bookmarkId(
+                                    bookmark.getBookmarkId())
+                            .paperId(
+                                    bookmark.getPaperId())
+                            .title(
+                                    paper != null
+                                            ? paper.getTitle()
+                                            : null)
+                            .note(
+                                    bookmark.getNote())
+                            .savedAt(
+                                    bookmark.getSavedAt())
+                            .build();
+                })
+                .toList();
+    }
+    @Override
+    public void bookmarkPaper(
+            SavePaperRequest request,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        paperRepository
+                .findById(
+                        request.getPaperId())
+                .orElseThrow(
+                        () -> new AppException(
+                                ErrorCode.PAPER_NOT_FOUND));
+
+        boolean exists =
+                bookmarkPaperRepository
+                        .existsByUserUserIdAndPaperIdAndFolderIsNull(
+                                user.getUserId(),
+                                request.getPaperId());
+        if (exists) {
+            throw new AppException(
+                    ErrorCode.PAPER_ALREADY_SAVED);
+        }
+
+        BookmarkPaper bookmark =
+                BookmarkPaper.builder()
+                        .paperId(
+                                request.getPaperId())
+                        .note(
+                                request.getNote())
+                        .user(user)
+                        .folder(null)
+                        .build();
+
+        bookmarkPaperRepository.save(
+                bookmark);
+    }
 }

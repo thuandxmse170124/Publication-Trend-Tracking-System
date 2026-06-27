@@ -148,6 +148,7 @@ public enum ErrorCode {
             1406,
             "Saved paper not found",
             HttpStatus.NOT_FOUND),
+    
     // Report Ticket
     REPORT_NOT_FOUND(
             1501,

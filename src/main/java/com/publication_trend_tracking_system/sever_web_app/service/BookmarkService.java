@@ -40,4 +40,16 @@ public interface BookmarkService {
     getFolderPapers(
             Long folderId,
             String email);
+    void bookmarkPaper(
+            SavePaperRequest request,
+            String email);
+    void removeBookmark(
+            Long paperId,
+            String email);
+    List<BookmarkPaperResponse>
+    getBookmarks(
+            String email);
+    boolean isBookmarked(
+            Long paperId,
+            String email);
 }

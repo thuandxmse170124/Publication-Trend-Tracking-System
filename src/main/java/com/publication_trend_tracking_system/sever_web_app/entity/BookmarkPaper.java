@@ -32,6 +32,10 @@ public class BookmarkPaper {
     @JoinColumn(name = "folder_id")
     private BookmarkFolder folder;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @PrePersist
     public void prePersist() {
         savedAt = LocalDateTime.now();
