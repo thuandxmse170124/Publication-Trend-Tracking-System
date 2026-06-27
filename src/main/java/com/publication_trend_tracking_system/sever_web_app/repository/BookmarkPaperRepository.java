@@ -21,19 +21,9 @@ public interface BookmarkPaperRepository
     Optional<BookmarkPaper> findByBookmarkId(
             Long bookmarkId);
 
-    List<BookmarkPaper> findByUserUserIdAndFolderIsNull(
-            Long userId);
 
     boolean existsByUserUserIdAndPaperId(
             Long userId,
             Long paperId);
 
-    @Modifying
-    @Transactional
-    void deleteByUserUserIdAndPaperIdAndFolderIsNull(
-            Long userId,
-            Long paperId);
-    boolean existsByUserUserIdAndPaperIdAndFolderIsNull(
-            Long userId,
-            Long paperId);
 }

@@ -139,32 +139,6 @@ public class BookmarkController {
                                 authentication.getName()))
                 .build();
     }
-    @PostMapping
-    public ApiResponse<?> bookmarkPaper(
-            @RequestBody SavePaperRequest request,
-            Authentication authentication) {
-
-        bookmarkService.bookmarkPaper(
-                request,
-                authentication.getName());
-
-        return ApiResponse.builder()
-                .code(1000)
-                .message("Paper bookmarked successfully")
-                .build();
-    }
-    @GetMapping
-    public ApiResponse<?> getBookmarks(
-            Authentication authentication) {
-
-        return ApiResponse.builder()
-                .code(1000)
-                .message("Success")
-                .result(
-                        bookmarkService.getBookmarks(
-                                authentication.getName()))
-                .build();
-    }
     @GetMapping("/check/{paperId}")
     public ApiResponse<?> checkBookmark(
             @PathVariable Long paperId,
@@ -179,18 +153,5 @@ public class BookmarkController {
                                 authentication.getName()))
                 .build();
     }
-    @DeleteMapping("/{paperId}")
-    public ApiResponse<?> removeBookmark(
-            @PathVariable Long paperId,
-            Authentication authentication) {
 
-        bookmarkService.removeBookmark(
-                paperId,
-                authentication.getName());
-
-        return ApiResponse.builder()
-                .code(1000)
-                .message("Bookmark removed successfully")
-                .build();
-    }
 }
