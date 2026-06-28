@@ -18,6 +18,15 @@ public class JournalController {
 
     private final JournalService journalService;
 
+    @GetMapping
+    public ApiResponse<java.util.List<JournalResponse>> getAllJournals() {
+        return ApiResponse.<java.util.List<JournalResponse>>builder()
+                .code(1000)
+                .message("Get all journals success")
+                .result(journalService.getAllJournals())
+                .build();
+    }
+
     @GetMapping("/{journalId}")
     public ApiResponse<JournalResponse> getJournalById(@PathVariable Integer journalId) {
         return ApiResponse.<JournalResponse>builder()

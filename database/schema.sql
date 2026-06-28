@@ -256,6 +256,7 @@ CREATE TABLE papers (
     source_url         VARCHAR(500),
     citation_count     INT          NOT NULL DEFAULT 0,
     visibility_status  VARCHAR(20)  NOT NULL DEFAULT 'visible' CONSTRAINT chk_papers_visibility CHECK (visibility_status IN ('visible','hidden', 'VISIBLE', 'HIDDEN')),
+    is_open_access     BIT          DEFAULT 0,
     created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (paper_id),

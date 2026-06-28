@@ -23,9 +23,18 @@ public interface PaperService {
             String keyword,
             String author,
             String journal,
-            Integer year,
+            Integer fromYear,
+            Integer toYear,
+            String institution,
+            List<String> types,
+            Boolean isOpenAccess,
             Integer fieldId,
             Integer topicId,
             Pageable pageable
     );
+
+    List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterKeywords();
+    List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterJournals();
+    List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterYears();
+    List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterTopics();
 }
