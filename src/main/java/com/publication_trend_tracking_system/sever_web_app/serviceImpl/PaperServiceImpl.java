@@ -113,7 +113,6 @@ public class PaperServiceImpl implements PaperService {
             Integer toYear,
             String institution,
             List<String> types,
-            Boolean isOpenAccess,
             Integer fieldId,
             Integer topicId,
             Pageable pageable) {
@@ -124,7 +123,7 @@ public class PaperServiceImpl implements PaperService {
         String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
         List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
-        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
+        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, fieldId, topicId, pageable);
         return papers.map(this::toResponse);
     }
 

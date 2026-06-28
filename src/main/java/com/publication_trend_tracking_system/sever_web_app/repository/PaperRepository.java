@@ -76,7 +76,6 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
            "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
            "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
            "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
-           "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
            "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
            "AND (:topicId IS NULL OR t.topicId = :topicId)")
     Page<Paper> searchPapers(
@@ -87,12 +86,8 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @Param("toYear") Integer toYear,
             @Param("institution") String institution,
             @Param("types") List<String> types,
-            @Param("isOpenAccess") Boolean isOpenAccess,
             @Param("fieldId") Integer fieldId,
             @Param("topicId") Integer topicId,
             Pageable pageable
     );
-
-    @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
-    java.util.List<Object[]> findDistinctYearsWithCount();
 }
