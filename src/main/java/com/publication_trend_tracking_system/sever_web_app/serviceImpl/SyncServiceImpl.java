@@ -41,6 +41,7 @@ public class SyncServiceImpl implements SyncService {
     private final AuthorRepository authorRepository;
     private final KeywordRepository keywordRepository;
     private final TopicRepository topicRepository;
+    private final org.springframework.context.ApplicationContext applicationContext;
 
     public RestTemplate restTemplate = new RestTemplate();
 
@@ -101,7 +102,7 @@ public class SyncServiceImpl implements SyncService {
                 if (responseBody != null && !responseBody.isBlank()) {
                     int[] counts = new int[2]; // [0] = added, [1] = updated
                     // Save results in transaction helper
-                    saveResultsInTransaction(responseBody, source, query, counts);
+                    applicationContext.getBean(SyncServiceImpl.class).saveResultsInTransaction(responseBody, source, query, counts);
                     addedCount += counts[0];
                     updatedCount += counts[1];
                 }
