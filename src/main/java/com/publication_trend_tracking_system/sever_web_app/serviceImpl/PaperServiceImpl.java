@@ -20,6 +20,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class PaperServiceImpl implements PaperService {
 
     private final PaperRepository paperRepository;
@@ -48,6 +49,7 @@ public class PaperServiceImpl implements PaperService {
                 .sourceUrl(request.getSourceUrl())
                 .citationCount(request.getCitationCount())
                 .visibilityStatus(request.getVisibilityStatus())
+                .isOpenAccess(request.getIsOpenAccess())
                 .build();
 
         resolveRelationships(paper, request);
@@ -90,6 +92,7 @@ public class PaperServiceImpl implements PaperService {
         existingPaper.setSourceUrl(request.getSourceUrl());
         existingPaper.setCitationCount(request.getCitationCount());
         existingPaper.setVisibilityStatus(request.getVisibilityStatus());
+        existingPaper.setIsOpenAccess(request.getIsOpenAccess());
 
         resolveRelationships(existingPaper, request);
 
@@ -108,7 +111,11 @@ public class PaperServiceImpl implements PaperService {
             String keyword,
             String author,
             String journal,
-            Integer year,
+            Integer fromYear,
+            Integer toYear,
+            String institution,
+            List<String> types,
+            Boolean isOpenAccess,
             Integer fieldId,
             Integer topicId,
             Pageable pageable) {
@@ -116,8 +123,10 @@ public class PaperServiceImpl implements PaperService {
         String kwParam = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
         String authParam = (author == null || author.isBlank()) ? null : author.trim();
         String jParam = (journal == null || journal.isBlank()) ? null : journal.trim();
+        String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
+        List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
-        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, topicId, pageable);
+        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
 
         // Advanced On-demand Sync: If keyword search returned 0 results, trigger an on-demand sync for this keyword
         if (papers.isEmpty() && kwParam != null) {
@@ -130,12 +139,10 @@ public class PaperServiceImpl implements PaperService {
                 if (activeSource != null) {
                     syncService.syncFromSource(activeSource.getSourceId(), null, kwParam);
                     // Query database again after sync completes
-                    papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, topicId, pageable);
+                    papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
                 }
             } catch (Exception e) {
-                // Log and swallow exception so search still works even if sync fails
-                // (e.g. rate limit, network down, etc.)
-                // log.error("Failed to run on-demand sync for keyword: " + kwParam, e);
+                log.error("Failed to run on-demand sync for keyword: " + kwParam, e);
             }
         }
         return papers.map(this::toResponse);
@@ -254,6 +261,7 @@ public class PaperServiceImpl implements PaperService {
                 .sourceUrl(paper.getSourceUrl())
                 .citationCount(paper.getCitationCount())
                 .visibilityStatus(paper.getVisibilityStatus())
+                .isOpenAccess(paper.getIsOpenAccess())
                 .createdAt(paper.getCreatedAt())
                 .updatedAt(paper.getUpdatedAt())
                 .authors(authorResponses)
@@ -269,5 +277,53 @@ public class PaperServiceImpl implements PaperService {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterKeywords() {
+        return keywordRepository.findTop50KeywordNamesWithCount().stream()
+                .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
+                        .label((String) obj[0])
+                        .value((String) obj[0])
+                        .count(((Number) obj[1]).longValue())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterJournals() {
+        return journalRepository.findTop50JournalNamesWithCount().stream()
+                .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
+                        .label((String) obj[0])
+                        .value((String) obj[0])
+                        .count(((Number) obj[1]).longValue())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterYears() {
+        return paperRepository.findDistinctYearsWithCount().stream()
+                .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
+                        .label(String.valueOf(obj[0]))
+                        .value(String.valueOf(obj[0]))
+                        .count(((Number) obj[1]).longValue())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterTopics() {
+        return topicRepository.findAllTopicsWithCount().stream()
+                .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
+                        .label((String) obj[1])
+                        .value(String.valueOf(obj[0]))
+                        .count(((Number) obj[2]).longValue())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
     }
 }

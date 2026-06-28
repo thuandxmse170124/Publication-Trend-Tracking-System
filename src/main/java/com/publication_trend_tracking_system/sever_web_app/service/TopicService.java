@@ -1,10 +1,12 @@
 package com.publication_trend_tracking_system.sever_web_app.service;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicResponse;
-
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface TopicService {
-    List<TopicResponse> getAllTopics();
+    Page<TopicResponse> getAllTopics(Pageable pageable);
     TopicResponse getTopicById(Integer topicId);
+    java.util.List<TopicResponse> getTrendingTopics();
 }
+

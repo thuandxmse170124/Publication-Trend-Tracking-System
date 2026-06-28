@@ -12,6 +12,8 @@ import com.publication_trend_tracking_system.sever_web_app.repository.PaperRepos
 import com.publication_trend_tracking_system.sever_web_app.repository.TopicRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.TopicService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,20 +28,18 @@ public class TopicServiceImpl implements TopicService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TopicResponse> getAllTopics() {
-        List<Topic> topics = topicRepository.findAll();
-        return topics.stream()
-                .map(topic -> {
-                    long paperCount = topicRepository.countPapersByTopicId(topic.getTopicId());
-                    return TopicResponse.builder()
-                            .topicId(topic.getTopicId())
-                            .topicName(topic.getTopicName())
-                            .description(topic.getDescription())
-                            .paperCount(paperCount)
-                            .latestPapers(null)
-                            .build();
-                })
-                .toList();
+    public Page<TopicResponse> getAllTopics(Pageable pageable) {
+        Page<Topic> topics = topicRepository.findAll(pageable);
+        return topics.map(topic -> {
+            long paperCount = topicRepository.countPapersByTopicId(topic.getTopicId());
+            return TopicResponse.builder()
+                    .topicId(topic.getTopicId())
+                    .topicName(topic.getTopicName())
+                    .description(topic.getDescription())
+                    .paperCount(paperCount)
+                    .latestPapers(null)
+                    .build();
+        });
     }
 
     @Override
@@ -62,6 +62,24 @@ public class TopicServiceImpl implements TopicService {
                 .paperCount(paperCount)
                 .latestPapers(paperResponses)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<TopicResponse> getTrendingTopics() {
+        return topicRepository.findTop5TrendingTopicsRaw().stream().map(obj -> {
+            Integer topicId = (Integer) obj[0];
+            String topicName = (String) obj[1];
+            String description = (String) obj[2];
+            long paperCount = topicRepository.countPapersByTopicId(topicId);
+            return TopicResponse.builder()
+                    .topicId(topicId)
+                    .topicName(topicName)
+                    .description(description)
+                    .paperCount(paperCount)
+                    .latestPapers(null)
+                    .build();
+        }).toList();
     }
 
     private PaperResponse toPaperResponse(Paper paper) {
