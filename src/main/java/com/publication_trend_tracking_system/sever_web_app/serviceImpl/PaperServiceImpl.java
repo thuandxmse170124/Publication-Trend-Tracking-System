@@ -162,7 +162,7 @@ public class PaperServiceImpl implements PaperService {
             for (String kwName : request.getKeywords()) {
                 if (kwName == null || kwName.isBlank()) continue;
                 String trimmed = kwName.trim();
-                Keyword keyword = keywordRepository.findByKeywordNameIgnoreCase(trimmed)
+                Keyword keyword = keywordRepository.findFirstByKeywordNameIgnoreCase(trimmed)
                         .orElseGet(() -> keywordRepository.save(Keyword.builder().keywordName(trimmed).build()));
                 keywords.add(keyword);
             }

@@ -106,6 +106,13 @@ public class SyncServiceImpl implements SyncService {
                     addedCount += counts[0];
                     updatedCount += counts[1];
                 }
+
+                // Prevent rate limiting (HTTP 429) from external APIs
+                try {
+                    Thread.sleep(3500);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
             }
 
             // 3. Update SyncJob with SUCCESS status
@@ -151,11 +158,11 @@ public class SyncServiceImpl implements SyncService {
     public void saveResultsInTransaction(String responseBody, ApiSource source, String searchQuery, int[] counts) {
         try {
             // Find keyword entity or create it
-            Keyword searchKeyword = keywordRepository.findByKeywordNameIgnoreCase(searchQuery)
+            Keyword searchKeyword = keywordRepository.findFirstByKeywordNameIgnoreCase(searchQuery)
                     .orElseGet(() -> keywordRepository.save(Keyword.builder().keywordName(searchQuery).build()));
 
             // Find topic entity if matches
-            Topic topic = topicRepository.findByTopicNameIgnoreCase(searchQuery).orElse(null);
+            Topic topic = topicRepository.findFirstByTopicNameIgnoreCase(searchQuery).orElse(null);
 
             if ("OpenAlex".equalsIgnoreCase(source.getSourceName())) {
                 parseAndSaveOpenAlex(responseBody, source, topic, searchKeyword, counts);
@@ -278,7 +285,7 @@ public class SyncServiceImpl implements SyncService {
                                     Topic topic, Keyword searchKeyword, ApiSource source, int[] counts) {
         Paper paper = null;
         if (doi != null && !doi.isBlank()) {
-            paper = paperRepository.findByDoiIgnoreCase(doi.trim()).orElse(null);
+            paper = paperRepository.findFirstByDoiIgnoreCase(doi.trim()).orElse(null);
         } else {
             paper = paperRepository.findByTitleIgnoreCase(title.trim()).stream().findFirst().orElse(null);
         }
@@ -307,14 +314,14 @@ public class SyncServiceImpl implements SyncService {
         }
 
         if (journalName != null && !journalName.isBlank()) {
-            Journal journal = journalRepository.findByNameIgnoreCase(journalName.trim())
+            Journal journal = journalRepository.findFirstByNameIgnoreCase(journalName.trim())
                     .orElseGet(() -> journalRepository.save(Journal.builder().name(journalName.trim()).build()));
             paper.setJournal(journal);
         }
 
         Set<Author> authors = new HashSet<>();
         for (String authorName : authorNames) {
-            Author author = authorRepository.findByFullNameIgnoreCase(authorName.trim())
+            Author author = authorRepository.findFirstByFullNameIgnoreCase(authorName.trim())
                     .orElseGet(() -> authorRepository.save(Author.builder().fullName(authorName.trim()).build()));
             authors.add(author);
         }

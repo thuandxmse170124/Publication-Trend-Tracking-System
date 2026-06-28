@@ -13,7 +13,7 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     boolean existsByDoi(String doi);
 
-    java.util.Optional<Paper> findByDoiIgnoreCase(String doi);
+    java.util.Optional<Paper> findFirstByDoiIgnoreCase(String doi);
 
     java.util.List<Paper> findByTitleIgnoreCase(String title);
 
