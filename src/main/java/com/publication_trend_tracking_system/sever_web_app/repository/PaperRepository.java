@@ -94,7 +94,4 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @Param("topicId") Integer topicId,
             Pageable pageable
     );
-
-    @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
-    java.util.List<Object[]> findDistinctYearsWithCount();
 }

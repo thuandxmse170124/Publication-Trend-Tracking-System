@@ -291,8 +291,18 @@ public enum ErrorCode {
     DISCOUNT_NOT_APPLICABLE(
             3005,
             "Discount is not applicable for this premium package",
-            HttpStatus.BAD_REQUEST);
+            HttpStatus.BAD_REQUEST),
+    DISCOUNT_ALREADY_ASSIGNED(
+        3006,
+                "Discount has already been assigned to this premium package",
+        HttpStatus.BAD_REQUEST
+        ),
 
+    DISCOUNT_NOT_ASSIGNED(
+        3007,
+                "Discount is not assigned to this premium package",
+        HttpStatus.NOT_FOUND
+        );
     private final int code;
     private final String message;
     private final HttpStatus statusCode;
