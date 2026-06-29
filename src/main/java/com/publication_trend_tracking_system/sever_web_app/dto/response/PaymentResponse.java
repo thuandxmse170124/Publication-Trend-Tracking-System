@@ -2,22 +2,17 @@ package com.publication_trend_tracking_system.sever_web_app.dto.response;
 
 import lombok.*;
 
-import java.math.BigDecimal;
-
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class PaymentResponse {
 
-    private Long transactionId;
+    private String checkoutUrl;
 
-    private Long invoiceId;
+    private String paymentLinkId;
 
-    private BigDecimal amountPaid;
+    private String qrCode;
 
-    private String paymentMethod;
-
-    private String transactionStatus;
 }

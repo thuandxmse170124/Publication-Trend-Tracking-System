@@ -5,7 +5,8 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.PaymentR
 
 public interface PaymentService {
 
-    PaymentResponse processPayment(
-            PaymentRequest request
+    PaymentResponse createPayment(
+            Long invoiceId
     );
+
 }

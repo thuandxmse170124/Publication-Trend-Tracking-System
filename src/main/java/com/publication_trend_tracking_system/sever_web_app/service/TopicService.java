@@ -7,5 +7,6 @@ import org.springframework.data.domain.Pageable;
 public interface TopicService {
     Page<TopicResponse> getAllTopics(Pageable pageable);
     TopicResponse getTopicById(Integer topicId);
+    java.util.List<TopicResponse> getTrendingTopics();
 }
 

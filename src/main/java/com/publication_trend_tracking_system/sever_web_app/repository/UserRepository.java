@@ -14,6 +14,10 @@ public interface UserRepository
 
     boolean existsByEmail(String email);
 
+
+
+    
+
     // Thống kê cá nhân cho Dashboard
     @Query(value = "SELECT COUNT(*) FROM folder_papers fp JOIN bookmark_folders bf ON fp.folder_id = bf.folder_id WHERE bf.user_id = :userId", nativeQuery = true)
     long countBookmarksByUserId(@Param("userId") Long userId);

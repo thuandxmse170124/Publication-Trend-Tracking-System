@@ -1,17 +1,19 @@
 package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
-import com.publication_trend_tracking_system.sever_web_app.dto.request.PaymentRequest;
+
 import com.publication_trend_tracking_system.sever_web_app.dto.response.PaymentResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.Invoice;
-import com.publication_trend_tracking_system.sever_web_app.entity.PaymentTransaction;
-import com.publication_trend_tracking_system.sever_web_app.entity.Premium;
-import com.publication_trend_tracking_system.sever_web_app.entity.UserSubscription;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.InvoiceRepository;
-import com.publication_trend_tracking_system.sever_web_app.repository.PaymentTransactionRepository;
-import com.publication_trend_tracking_system.sever_web_app.repository.UserSubscriptionRepository;
+
 import com.publication_trend_tracking_system.sever_web_app.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import vn.payos.PayOS;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLinkItem;
 
 import java.time.LocalDateTime;
 
@@ -21,91 +23,91 @@ import java.time.LocalDateTime;
 public class PaymentServiceImpl
         implements PaymentService {
 
+    private final PayOS payOS;
+
     private final InvoiceRepository invoiceRepository;
-    private final UserSubscriptionRepository userSubscriptionRepository;
-    private final PaymentTransactionRepository
-            paymentTransactionRepository;
 
     @Override
-    public PaymentResponse processPayment(
-            PaymentRequest request
+    public PaymentResponse createPayment(
+            Long invoiceId
     ) {
 
         Invoice invoice =
                 invoiceRepository
-                        .findById(
-                                request.getInvoiceId())
-                        .orElseThrow();
+                        .findById(invoiceId)
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.INVOICE_NOT_FOUND
+                                ));
 
-        if ("PAID".equals(
-                invoice.getStatus())) {
+        if (!"PENDING".equals(invoice.getStatus())) {
 
-            throw new RuntimeException(
-                    "Invoice already paid");
+            throw new AppException(
+                    ErrorCode.INVALID_INVOICE_STATUS
+            );
         }
 
-        invoice.setStatus("PAID");
+        try {
 
-        invoiceRepository.save(invoice);
+            PaymentLinkItem item =
+                    PaymentLinkItem.builder()
+                            .name(
+                                    invoice.getPremium()
+                                            .getPackageName()
+                            )
+                            .price(
+                                    invoice.getFinalAmount()
+                                            .longValue()
+                            )
+                            .quantity(1)
+                            .build();
 
-        PaymentTransaction transaction =
-                PaymentTransaction.builder()
-                        .invoice(invoice)
-                        .paymentMethod(
-                                request.getPaymentMethod())
-                        .amountPaid(
-                                invoice.getFinalAmount())
-                        .transactionStatus(
-                                "SUCCESS")
-                        .transactionDate(
-                                LocalDateTime.now())
-                        .build();
+            CreatePaymentLinkRequest request =
+                    CreatePaymentLinkRequest.builder()
+                            .orderCode(
+                                    invoice.getInvoiceId()
+                            )
+                            .amount(
+                                    invoice.getFinalAmount()
+                                            .longValue()
+                            )
+                            .description(
+                                    "Premium"
+                            )
+                            .returnUrl(
+                                    "http://localhost:3000/payment/success"
+                            )
+                            .cancelUrl(
+                                    "http://localhost:3000/payment/cancel"
+                            )
+                            .item(item)
+                            .build();
 
-        transaction =
-                paymentTransactionRepository
-                        .save(transaction);
+            CreatePaymentLinkResponse response =
+                    payOS.paymentRequests()
+                            .create(request);
 
-        Premium premium =
-                invoice.getPremium();
+            return PaymentResponse.builder()
+                    .checkoutUrl(
+                            response.getCheckoutUrl()
+                    )
+                    .paymentLinkId(
+                            response.getPaymentLinkId()
+                    )
+                    .qrCode(
+                            response.getQrCode()
+                    )
+                    .build();
 
-        LocalDateTime startDate =
-                LocalDateTime.now();
+        } catch (Exception e) {
 
-        LocalDateTime endDate =
-                startDate.plusDays(
-                        premium.getDurationDays()
-                );
+            e.printStackTrace();
 
-        UserSubscription subscription =
-                UserSubscription.builder()
-                        .user(
-                                invoice.getUser())
-                        .premium(
-                                premium)
-                        .startDate(
-                                startDate)
-                        .endDate(
-                                endDate)
-                        .status(
-                                "ACTIVE")
-                        .createdAt(
-                                LocalDateTime.now())
-                        .build();
+            throw new AppException(
+                    ErrorCode.PAYMENT_CREATE_FAILED
+            );
 
-        userSubscriptionRepository
-                .save(subscription);
+        }
 
-        return PaymentResponse.builder()
-                .transactionId(
-                        transaction.getTransactionId())
-                .invoiceId(
-                        invoice.getInvoiceId())
-                .amountPaid(
-                        transaction.getAmountPaid())
-                .paymentMethod(
-                        transaction.getPaymentMethod())
-                .transactionStatus(
-                        transaction.getTransactionStatus())
-                .build();
     }
 }

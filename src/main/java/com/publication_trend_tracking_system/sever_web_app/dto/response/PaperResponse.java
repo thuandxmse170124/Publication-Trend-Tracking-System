@@ -44,6 +44,8 @@ public class PaperResponse {
 
     private PaperVisibilityStatus visibilityStatus;
 
+    private Boolean isOpenAccess;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
