@@ -5,5 +5,5 @@ import java.util.List;
 
 public interface PremiumService {
 
-    List<PremiumResponse> getAllPremiums();
+    org.springframework.data.domain.Page<PremiumResponse> getAllPremiums(org.springframework.data.domain.Pageable pageable);
 }
