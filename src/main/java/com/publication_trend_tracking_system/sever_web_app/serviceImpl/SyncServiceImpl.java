@@ -70,7 +70,7 @@ public class SyncServiceImpl implements SyncService {
 
         try {
             // Determine search queries
-            List<String> queries = new ArrayList<>();
+            Set<String> queries = new LinkedHashSet<>();
             if (customQuery != null && !customQuery.trim().isEmpty()) {
                 queries.add(customQuery.trim());
             } else {
@@ -79,9 +79,11 @@ public class SyncServiceImpl implements SyncService {
                 for (Topic topic : activeTopics) {
                     queries.add(topic.getTopicName());
                 }
-                List<Keyword> activeKeywords = keywordRepository.findAll();
-                for (Keyword keyword : activeKeywords) {
-                    queries.add(keyword.getKeywordName());
+                List<Object[]> topKeywords = keywordRepository.findTop50TrendingKeywordNamesWithCount();
+                for (Object[] row : topKeywords) {
+                    if (row.length > 0 && row[0] instanceof String) {
+                        queries.add((String) row[0]);
+                    }
                 }
 
                 // Default fallback
@@ -180,7 +182,7 @@ public class SyncServiceImpl implements SyncService {
         if ("OpenAlex".equalsIgnoreCase(source.getSourceName())) {
             return source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=50";
         } else if ("Semantic Scholar".equalsIgnoreCase(source.getSourceName())) {
-            return source.getBaseUrl() + "/v1/paper/search?query=" + encodedQuery + "&limit=50&fields=title,abstract,authors,journal,year,externalIds,citationCount";
+            return source.getBaseUrl() + "/v1/paper/search?query=" + encodedQuery + "&limit=50&fields=title,abstract,authors,journal,year,externalIds,citationCount,fieldsOfStudy";
         }
         throw new IllegalArgumentException("Unsupported source name: " + source.getSourceName());
     }
@@ -237,7 +239,26 @@ public class SyncServiceImpl implements SyncService {
                     }
                 }
 
-                saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, topic, searchKeyword, source, counts);
+                Set<Topic> paperTopics = new HashSet<>();
+                if (topic != null) {
+                    paperTopics.add(topic);
+                }
+                JsonNode concepts = work.path("concepts");
+                if (concepts.isArray()) {
+                    for (JsonNode concept : concepts) {
+                        int level = concept.path("level").asInt(99);
+                        if (level <= 1) {
+                            String conceptName = concept.path("display_name").asText(null);
+                            if (conceptName != null && !conceptName.isBlank()) {
+                                Topic apiTopic = topicRepository.findFirstByTopicNameIgnoreCase(conceptName)
+                                    .orElseGet(() -> topicRepository.save(Topic.builder().topicName(conceptName).build()));
+                                paperTopics.add(apiTopic);
+                            }
+                        }
+                    }
+                }
+
+                saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, paperTopics, searchKeyword, source, counts);
             }
         }
     }
@@ -275,14 +296,30 @@ public class SyncServiceImpl implements SyncService {
                     }
                 }
 
-                saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, topic, searchKeyword, source, counts);
+                Set<Topic> paperTopics = new HashSet<>();
+                if (topic != null) {
+                    paperTopics.add(topic);
+                }
+                JsonNode fieldsOfStudy = paperNode.path("fieldsOfStudy");
+                if (fieldsOfStudy.isArray()) {
+                    for (JsonNode field : fieldsOfStudy) {
+                        String fieldName = field.asText(null);
+                        if (fieldName != null && !fieldName.isBlank()) {
+                            Topic apiTopic = topicRepository.findFirstByTopicNameIgnoreCase(fieldName)
+                                .orElseGet(() -> topicRepository.save(Topic.builder().topicName(fieldName).build()));
+                            paperTopics.add(apiTopic);
+                        }
+                    }
+                }
+
+                saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, paperTopics, searchKeyword, source, counts);
             }
         }
     }
 
     private void saveOrUpdatePaper(String title, String paperAbstract, Integer year, String doi, String sourceUrl,
                                     Integer citations, String journalName, Set<String> authorNames,
-                                    Topic topic, Keyword searchKeyword, ApiSource source, int[] counts) {
+                                    Set<Topic> topicsToMap, Keyword searchKeyword, ApiSource source, int[] counts) {
         Paper paper = null;
         if (doi != null && !doi.isBlank()) {
             paper = paperRepository.findFirstByDoiIgnoreCase(doi.trim()).orElse(null);
@@ -334,8 +371,8 @@ public class SyncServiceImpl implements SyncService {
         paper.setKeywords(keywords);
 
         Set<Topic> topics = new HashSet<>(paper.getTopics() != null ? paper.getTopics() : new HashSet<>());
-        if (topic != null) {
-            topics.add(topic);
+        if (topicsToMap != null && !topicsToMap.isEmpty()) {
+            topics.addAll(topicsToMap);
         }
         paper.setTopics(topics);
 
