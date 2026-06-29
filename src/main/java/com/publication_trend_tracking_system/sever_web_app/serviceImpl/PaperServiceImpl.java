@@ -58,8 +58,8 @@ public class PaperServiceImpl implements PaperService {
     @Transactional(readOnly = true)
     public List<PaperResponse> getAllPapers(String keyword) {
         List<Paper> papers = (keyword == null || keyword.isBlank())
-                ? paperRepository.findAllByOrderByCreatedAtDesc()
-                : paperRepository.findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
+                ? paperRepository.findTop100ByOrderByCreatedAtDesc()
+                : paperRepository.findTop100ByTitleContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
 
         return papers.stream()
                 .map(this::toResponse)
