@@ -70,21 +70,36 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
            "ORDER BY COUNT(p.paperId) DESC")
     java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.TopJournalResponse> findTopJournalsByPaperCount(@Param("fieldId") Integer fieldId, org.springframework.data.domain.Pageable pageable);
 
-    @Query("SELECT DISTINCT p FROM Paper p " +
-           "LEFT JOIN p.authors a " +
-           "LEFT JOIN p.journal j " +
-           "LEFT JOIN p.field f " +
-           "LEFT JOIN p.topics t " +
-           "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR p.paperAbstract LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-           "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
-           "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
-           "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
-           "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
-           "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
-           "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
-           "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
-           "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
-           "AND (:topicId IS NULL OR t.topicId = :topicId)")
+    @Query(value = "SELECT DISTINCT p FROM Paper p " +
+             "LEFT JOIN p.authors a " +
+             "LEFT JOIN p.journal j " +
+             "LEFT JOIN p.field f " +
+             "LEFT JOIN p.topics t " +
+             "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR p.paperAbstract LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+             "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
+             "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
+             "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
+             "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
+             "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
+             "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
+             "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
+             "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
+             "AND (:topicId IS NULL OR t.topicId = :topicId)",
+           countQuery = "SELECT COUNT(DISTINCT p) FROM Paper p " +
+             "LEFT JOIN p.authors a " +
+             "LEFT JOIN p.journal j " +
+             "LEFT JOIN p.field f " +
+             "LEFT JOIN p.topics t " +
+             "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR p.paperAbstract LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+             "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
+             "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
+             "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
+             "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
+             "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
+             "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
+             "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
+             "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
+             "AND (:topicId IS NULL OR t.topicId = :topicId)")
     Page<Paper> searchPapers(
             @Param("keyword") String keyword,
             @Param("author") String author,
