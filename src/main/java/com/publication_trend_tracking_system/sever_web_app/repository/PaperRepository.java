@@ -30,7 +30,7 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     @Query(value = "SELECT COUNT(*) FROM papers WHERE YEAR(created_at) = YEAR(DATEADD(month, -1, GETDATE())) AND MONTH(created_at) = MONTH(DATEADD(month, -1, GETDATE()))", nativeQuery = true)
     long countPapersLastMonth();
 
-    @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(p)) " +
+    @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(DISTINCT p)) " +
            "FROM Paper p " +
            "LEFT JOIN p.authors a " +
            "LEFT JOIN p.journal j " +
