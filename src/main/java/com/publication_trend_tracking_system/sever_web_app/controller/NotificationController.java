@@ -28,7 +28,7 @@ public class NotificationController {
                 .build();
     }
 
-    @PutMapping("/{notificationId}/read")
+    @PatchMapping("/{notificationId}/read")
     public ApiResponse<?> markAsRead(
             @PathVariable Long notificationId,
             Authentication authentication) {
@@ -41,6 +41,66 @@ public class NotificationController {
                 .code(1000)
                 .message(
                         "Notification marked as read")
+                .build();
+    }
+
+    @GetMapping("/unread")
+    public ApiResponse<?> getUnreadNotifications(
+            Authentication authentication) {
+
+        return ApiResponse.builder()
+                .code(1000)
+                .message("Success")
+                .result(
+                        notificationService
+                                .getUnreadNotifications(
+                                        authentication.getName()))
+                .build();
+    }
+
+    @PatchMapping("/read-all")
+    public ApiResponse<?> markAllAsRead(
+            Authentication authentication) {
+
+        notificationService
+                .markAllAsRead(
+                        authentication.getName());
+
+        return ApiResponse.builder()
+                .code(1000)
+                .message(
+                        "All notifications marked as read")
+                .build();
+    }
+
+    @DeleteMapping("/{notificationId}")
+    public ApiResponse<?> deleteNotification(
+            @PathVariable Long notificationId,
+            Authentication authentication) {
+
+        notificationService.deleteNotification(
+                notificationId,
+                authentication.getName());
+
+        return ApiResponse.builder()
+                .code(1000)
+                .message(
+                        "Notification deleted")
+                .build();
+    }
+
+    @DeleteMapping
+    public ApiResponse<?> deleteAllNotifications(
+            Authentication authentication) {
+
+        notificationService
+                .deleteAllNotifications(
+                        authentication.getName());
+
+        return ApiResponse.builder()
+                .code(1000)
+                .message(
+                        "All notifications deleted")
                 .build();
     }
 }

@@ -95,4 +95,107 @@ public class NotificationServiceImpl
         notificationRepository.save(
                 notification);
     }
+
+    @Override
+    public List<NotificationResponse>
+    getUnreadNotifications(
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        return notificationRepository
+                .findByUserUserIdAndIsReadFalseOrderByCreatedAtDesc(
+                        user.getUserId())
+                .stream()
+                .map(notification ->
+                        NotificationResponse.builder()
+                                .notificationId(
+                                        notification.getNotificationId())
+                                .title(
+                                        notification.getTitle())
+                                .message(
+                                        notification.getMessage())
+                                .isRead(
+                                        notification.getIsRead())
+                                .createdAt(
+                                        notification.getCreatedAt())
+                                .build())
+                .toList();
+    }
+
+    @Override
+    public void markAllAsRead(
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        List<Notification> notifications =
+                notificationRepository
+                        .findByUserUserIdOrderByCreatedAtDesc(
+                                user.getUserId());
+
+        notifications.forEach(
+                notification ->
+                        notification.setIsRead(true));
+
+        notificationRepository.saveAll(
+                notifications);
+    }
+
+    @Override
+    public void deleteNotification(
+            Long notificationId,
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        Notification notification =
+                notificationRepository
+                        .findById(notificationId)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.NOTIFICATION_NOT_FOUND));
+
+        if (!notification.getUser()
+                .getUserId()
+                .equals(user.getUserId())) {
+
+            throw new AppException(
+                    ErrorCode.UNAUTHORIZED);
+        }
+
+        notificationRepository.delete(
+                notification);
+    }
+
+    @Override
+    public void deleteAllNotifications(
+            String email) {
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(
+                                () -> new AppException(
+                                        ErrorCode.USER_NOT_FOUND));
+
+        notificationRepository
+                .deleteByUserUserId(
+                        user.getUserId());
+    }
 }

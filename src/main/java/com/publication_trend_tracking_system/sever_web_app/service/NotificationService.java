@@ -13,4 +13,18 @@ public interface NotificationService {
     void markAsRead(
             Long notificationId,
             String email);
+
+    List<NotificationResponse>
+    getUnreadNotifications(
+            String email);
+
+    void markAllAsRead(
+            String email);
+
+    void deleteNotification(
+            Long notificationId,
+            String email);
+
+    void deleteAllNotifications(
+            String email);
 }
