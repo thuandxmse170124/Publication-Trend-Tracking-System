@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface AuthorRepository extends JpaRepository<Author, Long> {
     Optional<Author> findFirstByFullNameIgnoreCase(String fullName);
+    java.util.List<Author> findAllByFullNameInIgnoreCase(java.util.Collection<String> fullNames);
 }

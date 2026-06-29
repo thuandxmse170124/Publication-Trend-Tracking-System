@@ -267,15 +267,36 @@ public class SyncServiceImpl implements SyncService {
                 }
                 JsonNode concepts = work.path("concepts");
                 if (concepts.isArray()) {
+                    Set<String> conceptNames = new HashSet<>();
                     for (JsonNode concept : concepts) {
                         int level = concept.path("level").asInt(99);
                         if (level <= 1) {
                             String conceptName = concept.path("display_name").asText(null);
                             if (conceptName != null && !conceptName.isBlank()) {
-                                Topic apiTopic = topicRepository.findFirstByTopicNameIgnoreCase(conceptName)
-                                    .orElseGet(() -> topicRepository.save(Topic.builder().topicName(conceptName).build()));
-                                paperTopics.add(apiTopic);
+                                conceptNames.add(conceptName.trim());
                             }
+                        }
+                    }
+                    if (!conceptNames.isEmpty()) {
+                        java.util.List<Topic> existingTopics = topicRepository.findAllByTopicNameInIgnoreCase(conceptNames);
+                        java.util.Map<String, Topic> existingMap = new java.util.HashMap<>();
+                        for (Topic t : existingTopics) {
+                            existingMap.put(t.getTopicName().toLowerCase(), t);
+                        }
+                        java.util.List<Topic> toSave = new java.util.ArrayList<>();
+                        for (String cName : conceptNames) {
+                            String lower = cName.toLowerCase();
+                            if (existingMap.containsKey(lower)) {
+                                paperTopics.add(existingMap.get(lower));
+                            } else {
+                                Topic newT = Topic.builder().topicName(cName).build();
+                                toSave.add(newT);
+                                paperTopics.add(newT);
+                                existingMap.put(lower, newT);
+                            }
+                        }
+                        if (!toSave.isEmpty()) {
+                            topicRepository.saveAll(toSave);
                         }
                     }
                 }
@@ -324,12 +345,33 @@ public class SyncServiceImpl implements SyncService {
                 }
                 JsonNode fieldsOfStudy = paperNode.path("fieldsOfStudy");
                 if (fieldsOfStudy.isArray()) {
+                    Set<String> fieldNames = new HashSet<>();
                     for (JsonNode field : fieldsOfStudy) {
                         String fieldName = field.asText(null);
                         if (fieldName != null && !fieldName.isBlank()) {
-                            Topic apiTopic = topicRepository.findFirstByTopicNameIgnoreCase(fieldName)
-                                .orElseGet(() -> topicRepository.save(Topic.builder().topicName(fieldName).build()));
-                            paperTopics.add(apiTopic);
+                            fieldNames.add(fieldName.trim());
+                        }
+                    }
+                    if (!fieldNames.isEmpty()) {
+                        java.util.List<Topic> existingTopics = topicRepository.findAllByTopicNameInIgnoreCase(fieldNames);
+                        java.util.Map<String, Topic> existingMap = new java.util.HashMap<>();
+                        for (Topic t : existingTopics) {
+                            existingMap.put(t.getTopicName().toLowerCase(), t);
+                        }
+                        java.util.List<Topic> toSave = new java.util.ArrayList<>();
+                        for (String fName : fieldNames) {
+                            String lower = fName.toLowerCase();
+                            if (existingMap.containsKey(lower)) {
+                                paperTopics.add(existingMap.get(lower));
+                            } else {
+                                Topic newT = Topic.builder().topicName(fName).build();
+                                toSave.add(newT);
+                                paperTopics.add(newT);
+                                existingMap.put(lower, newT);
+                            }
+                        }
+                        if (!toSave.isEmpty()) {
+                            topicRepository.saveAll(toSave);
                         }
                     }
                 }
@@ -379,10 +421,29 @@ public class SyncServiceImpl implements SyncService {
         }
 
         Set<Author> authors = new HashSet<>();
-        for (String authorName : authorNames) {
-            Author author = authorRepository.findFirstByFullNameIgnoreCase(authorName.trim())
-                    .orElseGet(() -> authorRepository.save(Author.builder().fullName(authorName.trim()).build()));
-            authors.add(author);
+        if (authorNames != null && !authorNames.isEmpty()) {
+            java.util.List<Author> existing = authorRepository.findAllByFullNameInIgnoreCase(authorNames);
+            java.util.Map<String, Author> existingMap = new java.util.HashMap<>();
+            for (Author a : existing) {
+                existingMap.put(a.getFullName().toLowerCase(), a);
+            }
+            java.util.List<Author> toSave = new java.util.ArrayList<>();
+            for (String authorName : authorNames) {
+                if (authorName == null || authorName.isBlank()) continue;
+                String name = authorName.trim();
+                String lower = name.toLowerCase();
+                if (existingMap.containsKey(lower)) {
+                    authors.add(existingMap.get(lower));
+                } else {
+                    Author newA = Author.builder().fullName(name).build();
+                    toSave.add(newA);
+                    authors.add(newA);
+                    existingMap.put(lower, newA); // Prevent duplicates in the same batch
+                }
+            }
+            if (!toSave.isEmpty()) {
+                authorRepository.saveAll(toSave);
+            }
         }
         paper.setAuthors(authors);
 

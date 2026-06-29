@@ -11,6 +11,7 @@ import java.util.Optional;
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, Integer> {
     Optional<Topic> findFirstByTopicNameIgnoreCase(String topicName);
+    java.util.List<Topic> findAllByTopicNameInIgnoreCase(java.util.Collection<String> topicNames);
 
     @Query(value = "SELECT t.topic_id, t.topic_name, t.description, COUNT(ft.user_id) as follower_count " +
                    "FROM topics t " +
