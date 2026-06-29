@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface AdminUserService {
 
-    List<UserResponse> getAllUsers();
+    org.springframework.data.domain.Page<UserResponse> getAllUsers(org.springframework.data.domain.Pageable pageable);
 
     void activateUser(Long userId);
 
