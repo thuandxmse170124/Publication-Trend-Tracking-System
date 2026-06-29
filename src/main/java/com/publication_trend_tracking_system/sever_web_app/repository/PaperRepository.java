@@ -24,10 +24,10 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
 
 
-    @Query(value = "SELECT COUNT(*) FROM papers WHERE YEAR(created_at) = YEAR(GETDATE()) AND MONTH(created_at) = MONTH(GETDATE())", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()) + 1, 0)", nativeQuery = true)
     long countPapersThisMonth();
 
-    @Query(value = "SELECT COUNT(*) FROM papers WHERE YEAR(created_at) = YEAR(DATEADD(month, -1, GETDATE())) AND MONTH(created_at) = MONTH(DATEADD(month, -1, GETDATE()))", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()) - 1, 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0)", nativeQuery = true)
     long countPapersLastMonth();
 
     @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(DISTINCT p)) " +
