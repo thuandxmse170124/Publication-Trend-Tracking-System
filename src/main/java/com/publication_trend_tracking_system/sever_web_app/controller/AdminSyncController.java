@@ -80,4 +80,25 @@ public class AdminSyncController {
                 .result(result)
                 .build();
     }
+
+    @PostMapping("/trigger-all/{sourceId}")
+    public ApiResponse<SyncJobResponse> triggerSyncAll(
+            @PathVariable Integer sourceId,
+            Authentication authentication) {
+
+        User user = null;
+        if (authentication != null) {
+            user = userRepository.findByEmail(authentication.getName())
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        }
+
+        Long userId = user != null ? user.getUserId() : null;
+        SyncJobResponse result = syncService.syncAll(sourceId, userId);
+
+        return ApiResponse.<SyncJobResponse>builder()
+                .code(1000)
+                .message("Sync-all job started in background")
+                .result(result)
+                .build();
+    }
 }

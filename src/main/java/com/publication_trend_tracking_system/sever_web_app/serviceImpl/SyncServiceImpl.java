@@ -169,6 +169,90 @@ public class SyncServiceImpl implements SyncService {
         return syncFromSource(job.getApiSource().getSourceId(), userId, null);
     }
 
+    @Override
+    public SyncJobResponse syncAll(Integer sourceId, Long userId) {
+        ApiSource source = apiSourceRepository.findById(sourceId)
+                .orElseThrow(() -> new AppException(ErrorCode.API_SOURCE_NOT_FOUND));
+
+        if (!"ACTIVE".equalsIgnoreCase(source.getStatus())) {
+            throw new AppException(ErrorCode.API_SOURCE_INACTIVE);
+        }
+
+        User user = userId != null ? userRepository.findById(userId).orElse(null) : null;
+
+        SyncJob job = syncJobRepository.save(SyncJob.builder()
+                .apiSource(source)
+                .triggeredBy(user)
+                .status("RUNNING")
+                .startedAt(LocalDateTime.now())
+                .build());
+
+        // Run in background — fetch all topics page by page, then all keywords page by page
+        new Thread(() -> {
+            int totalAdded = 0, totalUpdated = 0;
+            try {
+                int pageSize = 50;
+                // --- Topics ---
+                int topicPage = 0;
+                while (true) {
+                    List<Topic> topics = topicRepository.findAll(PageRequest.of(topicPage, pageSize)).getContent();
+                    if (topics.isEmpty()) break;
+                    for (Topic topic : topics) {
+                        try {
+                            String url = buildApiUrl(source, topic.getTopicName());
+                            String body = fetchFromApi(url);
+                            if (body != null && !body.isBlank()) {
+                                int[] counts = new int[2];
+                                applicationContext.getBean(SyncServiceImpl.class)
+                                        .saveResultsInTransaction(body, source, topic.getTopicName(), counts);
+                                totalAdded += counts[0];
+                                totalUpdated += counts[1];
+                            }
+                        } catch (Exception e) {
+                            log.warn("Sync-all failed for topic {}: {}", topic.getTopicName(), e.getMessage());
+                        }
+                    }
+                    topicPage++;
+                }
+                // --- Keywords ---
+                int kwPage = 0;
+                while (true) {
+                    List<Keyword> keywords = keywordRepository.findAll(PageRequest.of(kwPage, pageSize)).getContent();
+                    if (keywords.isEmpty()) break;
+                    for (Keyword kw : keywords) {
+                        try {
+                            String url = buildApiUrl(source, kw.getKeywordName());
+                            String body = fetchFromApi(url);
+                            if (body != null && !body.isBlank()) {
+                                int[] counts = new int[2];
+                                applicationContext.getBean(SyncServiceImpl.class)
+                                        .saveResultsInTransaction(body, source, kw.getKeywordName(), counts);
+                                totalAdded += counts[0];
+                                totalUpdated += counts[1];
+                            }
+                        } catch (Exception e) {
+                            log.warn("Sync-all failed for keyword {}: {}", kw.getKeywordName(), e.getMessage());
+                        }
+                    }
+                    kwPage++;
+                }
+
+                job.setStatus("COMPLETED");
+                job.setAddedCount(totalAdded);
+                job.setUpdatedCount(totalUpdated);
+            } catch (Exception e) {
+                log.error("Sync-all job failed", e);
+                job.setStatus("FAILED");
+                job.setErrorMessage(e.getMessage());
+            } finally {
+                job.setFinishedAt(LocalDateTime.now());
+                syncJobRepository.save(job);
+            }
+        }, "sync-all-thread").start();
+
+        return toResponse(job);
+    }
+
     @Transactional
     public void saveResultsInTransaction(String responseBody, ApiSource source, String searchQuery, int[] counts) {
         try {

@@ -8,4 +8,5 @@ public interface SyncService {
     void executeSyncJob(Long jobId, Integer sourceId, String customQuery);
     Page<SyncJobResponse> getSyncLogs(int page, int size);
     SyncJobResponse retrySyncJob(Long jobId, Long userId);
+    SyncJobResponse syncAll(Integer sourceId, Long userId);
 }
