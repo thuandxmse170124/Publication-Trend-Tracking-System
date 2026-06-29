@@ -18,4 +18,7 @@ public interface FollowTopicRepository
     void deleteByUserUserIdAndTopicTopicId(
             Long userId,
             Integer topicId);
+
+    List<FollowTopic> findByTopicTopicId(
+            Integer topicId);
 }

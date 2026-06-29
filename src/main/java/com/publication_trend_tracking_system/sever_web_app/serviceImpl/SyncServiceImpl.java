@@ -10,8 +10,10 @@ import com.publication_trend_tracking_system.sever_web_app.exception.AppExceptio
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.*;
 import com.publication_trend_tracking_system.sever_web_app.service.SyncService;
+import com.publication_trend_tracking_system.sever_web_app.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +44,8 @@ public class SyncServiceImpl implements SyncService {
     private final KeywordRepository keywordRepository;
     private final TopicRepository topicRepository;
     private final org.springframework.context.ApplicationContext applicationContext;
+    private final NotificationService
+            notificationService;
 
     public RestTemplate restTemplate = new RestTemplate();
 
@@ -93,6 +97,9 @@ public class SyncServiceImpl implements SyncService {
             int addedCount = 0;
             int updatedCount = 0;
 
+            List<Paper> newPapers =
+                    new ArrayList<>();
+
             // 2. Query external API for each query (HTTP calls run outside transactional block)
             for (String query : queries) {
                 log.info("Starting sync from {} for query: {}", source.getSourceName(), query);
@@ -102,7 +109,14 @@ public class SyncServiceImpl implements SyncService {
                 if (responseBody != null && !responseBody.isBlank()) {
                     int[] counts = new int[2]; // [0] = added, [1] = updated
                     // Save results in transaction helper
-                    applicationContext.getBean(SyncServiceImpl.class).saveResultsInTransaction(responseBody, source, query, counts);
+                    applicationContext
+                            .getBean(SyncServiceImpl.class)
+                            .saveResultsInTransaction(
+                                    responseBody,
+                                    source,
+                                    query,
+                                    counts,
+                                    newPapers);
                     addedCount += counts[0];
                     updatedCount += counts[1];
                 }
@@ -118,6 +132,16 @@ public class SyncServiceImpl implements SyncService {
             // 4. Update ApiSource last_synced_at
             source.setLastSyncedAt(LocalDateTime.now());
             apiSourceRepository.save(source);
+            if (!newPapers.isEmpty()) {
+
+                log.info(
+                        "Creating notifications for {} new papers",
+                        newPapers.size());
+
+                notificationService
+                        .notifyUsersForNewPapers(
+                                newPapers);
+            }
 
         } catch (Exception ex) {
             log.error("Failed to run sync job id: " + job.getSyncJobId(), ex);
@@ -148,7 +172,7 @@ public class SyncServiceImpl implements SyncService {
     }
 
     @Transactional
-    public void saveResultsInTransaction(String responseBody, ApiSource source, String searchQuery, int[] counts) {
+    public void saveResultsInTransaction(String responseBody, ApiSource source, String searchQuery, int[] counts, List<Paper> newPapers) {
         try {
             // Find keyword entity or create it
             Keyword searchKeyword = keywordRepository.findByKeywordNameIgnoreCase(searchQuery)
@@ -158,9 +182,21 @@ public class SyncServiceImpl implements SyncService {
             Topic topic = topicRepository.findByTopicNameIgnoreCase(searchQuery).orElse(null);
 
             if ("OpenAlex".equalsIgnoreCase(source.getSourceName())) {
-                parseAndSaveOpenAlex(responseBody, source, topic, searchKeyword, counts);
+                parseAndSaveOpenAlex(
+                        responseBody,
+                        source,
+                        topic,
+                        searchKeyword,
+                        counts,
+                        newPapers);
             } else if ("Semantic Scholar".equalsIgnoreCase(source.getSourceName())) {
-                parseAndSaveSemanticScholar(responseBody, source, topic, searchKeyword, counts);
+                parseAndSaveSemanticScholar(
+                        responseBody,
+                        source,
+                        topic,
+                        searchKeyword,
+                        counts,
+                        newPapers);
             }
         } catch (Exception e) {
             log.error("Error saving data in transactional helper", e);
@@ -191,7 +227,13 @@ public class SyncServiceImpl implements SyncService {
         }
     }
 
-    private void parseAndSaveOpenAlex(String jsonResponse, ApiSource source, Topic topic, Keyword searchKeyword, int[] counts) throws Exception {
+    private void parseAndSaveOpenAlex(
+            String jsonResponse,
+            ApiSource source,
+            Topic topic,
+            Keyword searchKeyword,
+            int[] counts,
+            List<Paper> newPapers) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(jsonResponse);
         JsonNode results = root.path("results");
@@ -230,12 +272,18 @@ public class SyncServiceImpl implements SyncService {
                     }
                 }
 
-                saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, topic, searchKeyword, source, counts);
+                saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, topic, searchKeyword, source, counts, newPapers);
             }
         }
     }
 
-    private void parseAndSaveSemanticScholar(String jsonResponse, ApiSource source, Topic topic, Keyword searchKeyword, int[] counts) throws Exception {
+    private void parseAndSaveSemanticScholar(
+            String jsonResponse,
+            ApiSource source,
+            Topic topic,
+            Keyword searchKeyword,
+            int[] counts,
+            List<Paper> newPapers) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(jsonResponse);
         JsonNode data = root.path("data");
@@ -268,14 +316,14 @@ public class SyncServiceImpl implements SyncService {
                     }
                 }
 
-                saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, topic, searchKeyword, source, counts);
+                saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, topic, searchKeyword, source, counts, newPapers);
             }
         }
     }
 
     private void saveOrUpdatePaper(String title, String paperAbstract, Integer year, String doi, String sourceUrl,
                                     Integer citations, String journalName, Set<String> authorNames,
-                                    Topic topic, Keyword searchKeyword, ApiSource source, int[] counts) {
+                                    Topic topic, Keyword searchKeyword, ApiSource source, int[] counts, List<Paper> newPapers) {
         Paper paper = null;
         if (doi != null && !doi.isBlank()) {
             paper = paperRepository.findByDoiIgnoreCase(doi.trim()).orElse(null);
@@ -332,7 +380,15 @@ public class SyncServiceImpl implements SyncService {
         }
         paper.setTopics(topics);
 
-        paperRepository.save(paper);
+        //paperRepository.save(paper);
+        Paper savedPaper =
+                paperRepository.save(
+                        paper);
+
+        if (isNew) {
+            newPapers.add(
+                    savedPaper);
+        }
     }
 
     private String reconstructAbstractFromJson(JsonNode abstractNode) {
