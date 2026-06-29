@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 @org.springframework.scheduling.annotation.EnableScheduling
+@org.springframework.scheduling.annotation.EnableAsync
 @OpenAPIDefinition(info = @Info(title = "PuclicTracker API", version = "1.0", description = "Information"))
 @SecurityScheme(
 		name = "api", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT"
