@@ -93,7 +93,7 @@ public class SyncServiceImpl implements SyncService {
                 queries.add(customQuery.trim());
             } else {
                 // By default, query using topics name and keyword names
-                List<Topic> activeTopics = topicRepository.findAll();
+                List<Topic> activeTopics = topicRepository.findTop5TrendingTopics();
                 for (Topic topic : activeTopics) {
                     queries.add(topic.getTopicName());
                 }
@@ -138,6 +138,7 @@ public class SyncServiceImpl implements SyncService {
                     Thread.sleep(3500);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
+                    break;
                 }
             }
 

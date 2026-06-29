@@ -519,3 +519,9 @@ FROM papers p
 JOIN paper_authors pa ON p.paper_id = pa.paper_id
 JOIN authors a ON pa.author_id = a.author_id;
 GO
+
+-- Added for Sync performance
+CREATE INDEX idx_papers_title ON papers (title);
+CREATE INDEX idx_papers_created_at ON papers (created_at);
+CREATE INDEX idx_authors_fullname ON authors (full_name);
+CREATE INDEX idx_journals_name ON journals (name);
