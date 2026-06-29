@@ -43,6 +43,8 @@ public class PaperRequest {
     @NotNull
     private PaperVisibilityStatus visibilityStatus;
 
+    private Boolean isOpenAccess;
+
     private List<Long> authorIds;
 
     private List<String> keywords;

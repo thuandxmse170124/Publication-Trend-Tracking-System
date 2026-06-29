@@ -211,6 +211,7 @@ CREATE TABLE [dbo].[api_sources](
 	[base_url] [varchar](255) NULL,
 	[api_key_ref] [varchar](255) NULL,
 	[status] [varchar](255) NULL,
+	[last_synced_at] [datetime] NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[source_id] ASC
@@ -400,6 +401,28 @@ UNIQUE NONCLUSTERED
 (
 	[topic_name] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[sync_jobs]    Script Date: 17/06/2026 13:43:47 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[sync_jobs] (
+    [sync_job_id]   [bigint] IDENTITY(1,1) NOT NULL,
+    [source_id]     [int] NOT NULL,
+    [triggered_by]  [bigint] NULL,
+    [status]        [varchar](50) NOT NULL DEFAULT 'RUNNING',
+    [added_count]   [int] NOT NULL DEFAULT 0,
+    [updated_count] [int] NOT NULL DEFAULT 0,
+    [error_message] [varchar](max) NULL,
+    [started_at]    [datetime] NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    [finished_at]   [datetime] NULL,
+    PRIMARY KEY CLUSTERED ([sync_job_id] ASC),
+    CONSTRAINT [fk_sj_source] FOREIGN KEY([source_id]) REFERENCES [dbo].[api_sources] ([source_id]),
+    CONSTRAINT [fk_sj_user] FOREIGN KEY([triggered_by]) REFERENCES [dbo].[users] ([user_id]) ON DELETE SET NULL,
+    CONSTRAINT [chk_sync_jobs_status] CHECK ([status]='RUNNING' OR [status]='SUCCESS' OR [status]='FAILED')
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
 SET ANSI_PADDING ON
