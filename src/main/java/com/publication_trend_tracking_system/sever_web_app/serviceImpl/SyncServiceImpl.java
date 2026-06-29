@@ -43,7 +43,10 @@ public class SyncServiceImpl implements SyncService {
     private final TopicRepository topicRepository;
     private final org.springframework.context.ApplicationContext applicationContext;
 
-    public RestTemplate restTemplate = new RestTemplate();
+    public RestTemplate restTemplate = new org.springframework.boot.web.client.RestTemplateBuilder()
+            .setConnectTimeout(java.time.Duration.ofSeconds(5))
+            .setReadTimeout(java.time.Duration.ofSeconds(30))
+            .build();
 
     @Override
     public SyncJobResponse syncFromSource(Integer sourceId, Long userId, String customQuery) {
@@ -67,6 +70,18 @@ public class SyncServiceImpl implements SyncService {
                 .status("RUNNING")
                 .startedAt(LocalDateTime.now())
                 .build());
+
+        return toResponse(job);
+    }
+
+    @Override
+    @org.springframework.scheduling.annotation.Async
+    public void executeSyncJob(Long jobId, Integer sourceId, String customQuery) {
+        SyncJob job = syncJobRepository.findById(jobId).orElse(null);
+        if (job == null) return;
+
+        ApiSource source = apiSourceRepository.findById(sourceId).orElse(null);
+        if (source == null) return;
 
         try {
             // Determine search queries
@@ -95,16 +110,22 @@ public class SyncServiceImpl implements SyncService {
 
             // 2. Query external API for each query (HTTP calls run outside transactional block)
             for (String query : queries) {
-                log.info("Starting sync from {} for query: {}", source.getSourceName(), query);
-                String url = buildApiUrl(source, query);
-                String responseBody = fetchFromApi(url);
+                try {
+                    log.info("Starting sync from {} for query: {}", source.getSourceName(), query);
+                    String url = buildApiUrl(source, query);
+                    String responseBody = fetchFromApi(url);
 
-                if (responseBody != null && !responseBody.isBlank()) {
-                    int[] counts = new int[2]; // [0] = added, [1] = updated
-                    // Save results in transaction helper
-                    applicationContext.getBean(SyncServiceImpl.class).saveResultsInTransaction(responseBody, source, query, counts);
-                    addedCount += counts[0];
-                    updatedCount += counts[1];
+                    if (responseBody != null && !responseBody.isBlank()) {
+                        int[] counts = new int[2]; // [0] = added, [1] = updated
+                        // Save results in transaction helper
+                        applicationContext.getBean(SyncServiceImpl.class).saveResultsInTransaction(responseBody, source, query, counts);
+                        addedCount += counts[0];
+                        updatedCount += counts[1];
+                    }
+                    // Bổ sung Rate Limit delay để tránh HTTP 429
+                    Thread.sleep(1000);
+                } catch (Exception ex) {
+                    log.error("Failed to sync query: " + query + ". Continuing to next...", ex);
                 }
             }
 
@@ -126,8 +147,6 @@ public class SyncServiceImpl implements SyncService {
             job.setFinishedAt(LocalDateTime.now());
             syncJobRepository.save(job);
         }
-
-        return toResponse(job);
     }
 
     @Override

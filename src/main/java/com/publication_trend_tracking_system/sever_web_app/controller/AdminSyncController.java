@@ -37,6 +37,7 @@ public class AdminSyncController {
 
         Long userId = user != null ? user.getUserId() : null;
         SyncJobResponse result = syncService.syncFromSource(sourceId, userId, query);
+        syncService.executeSyncJob(result.getSyncJobId(), sourceId, query);
 
         return ApiResponse.<SyncJobResponse>builder()
                 .code(1000)
@@ -73,6 +74,7 @@ public class AdminSyncController {
 
         Long userId = user != null ? user.getUserId() : null;
         SyncJobResponse result = syncService.retrySyncJob(jobId, userId);
+        syncService.executeSyncJob(result.getSyncJobId(), result.getSourceId(), null);
 
         return ApiResponse.<SyncJobResponse>builder()
                 .code(1000)
