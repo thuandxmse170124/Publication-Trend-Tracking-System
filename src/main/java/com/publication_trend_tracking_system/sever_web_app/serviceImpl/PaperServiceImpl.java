@@ -132,10 +132,7 @@ public class PaperServiceImpl implements PaperService {
         if (papers.isEmpty() && kwParam != null) {
             try {
                 // Find first active API source dynamically
-                ApiSource activeSource = apiSourceRepository.findAll().stream()
-                        .filter(s -> "ACTIVE".equalsIgnoreCase(s.getStatus()))
-                        .findFirst()
-                        .orElse(null);
+                ApiSource activeSource = apiSourceRepository.findByStatusIgnoreCase("ACTIVE").orElse(null);
                 if (activeSource != null) {
                     syncService.syncFromSource(activeSource.getSourceId(), null, kwParam);
                     // Query database again after sync completes
