@@ -38,6 +38,6 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
                    "ORDER BY COUNT(pt.paper_id) DESC", nativeQuery = true)
     java.util.List<Topic> findTop5TrendingTopicEntities();
 
-    @Query(value = "SELECT t.topic_id, t.topic_name, COUNT(pt.paper_id) FROM topics t LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id GROUP BY t.topic_id, t.topic_name ORDER BY COUNT(pt.paper_id) DESC", nativeQuery = true)
-    java.util.List<Object[]> findAllTopicsWithCount();
+    @Query(value = "SELECT TOP 50 t.topic_id, t.topic_name, COUNT(pt.paper_id) FROM topics t LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id GROUP BY t.topic_id, t.topic_name ORDER BY COUNT(pt.paper_id) DESC", nativeQuery = true)
+    java.util.List<Object[]> findTop50TopicsWithCount();
 }
