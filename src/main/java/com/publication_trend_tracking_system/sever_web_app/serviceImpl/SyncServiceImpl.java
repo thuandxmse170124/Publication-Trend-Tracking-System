@@ -71,6 +71,9 @@ public class SyncServiceImpl implements SyncService {
                 .startedAt(LocalDateTime.now())
                 .build());
 
+        // Self-invocation to trigger @Async method
+        applicationContext.getBean(SyncService.class).executeSyncJob(job.getSyncJobId(), sourceId, customQuery);
+
         return toResponse(job);
     }
 
