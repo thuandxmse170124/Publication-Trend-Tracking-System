@@ -73,7 +73,7 @@ public class AdminDiscountServiceImpl
         if (premium.getDiscounts().contains(discount)) {
 
             throw new AppException(
-                    ErrorCode.DISCOUNT_ALREADY_ASSIGNED
+                    ErrorCode.DISCOUNT_ALREADY_EXISTS
             );
         }
 
@@ -161,7 +161,7 @@ public class AdminDiscountServiceImpl
         if (!premium.getDiscounts().contains(discount)) {
 
             throw new AppException(
-                    ErrorCode.DISCOUNT_NOT_ASSIGNED
+                    ErrorCode.DISCOUNT_NOT_FOUND
             );
         }
 

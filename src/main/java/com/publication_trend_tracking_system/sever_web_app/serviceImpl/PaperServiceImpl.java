@@ -20,6 +20,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class PaperServiceImpl implements PaperService {
 
     private final PaperRepository paperRepository;
@@ -29,6 +30,7 @@ public class PaperServiceImpl implements PaperService {
     private final AuthorRepository authorRepository;
     private final KeywordRepository keywordRepository;
     private final TopicRepository topicRepository;
+    private final com.publication_trend_tracking_system.sever_web_app.service.SyncService syncService;
 
     @Override
     @Transactional
@@ -104,7 +106,7 @@ public class PaperServiceImpl implements PaperService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Page<PaperResponse> searchPapers(
             String keyword,
             String author,
@@ -125,6 +127,24 @@ public class PaperServiceImpl implements PaperService {
         List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
         Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
+
+        // Advanced On-demand Sync: If keyword search returned 0 results, trigger an on-demand sync for this keyword
+        if (papers.isEmpty() && kwParam != null) {
+            try {
+                // Find first active API source dynamically
+                ApiSource activeSource = apiSourceRepository.findAll().stream()
+                        .filter(s -> "ACTIVE".equalsIgnoreCase(s.getStatus()))
+                        .findFirst()
+                        .orElse(null);
+                if (activeSource != null) {
+                    syncService.syncFromSource(activeSource.getSourceId(), null, kwParam);
+                    // Query database again after sync completes
+                    papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
+                }
+            } catch (Exception e) {
+                log.error("Failed to run on-demand sync for keyword: " + kwParam, e);
+            }
+        }
         return papers.map(this::toResponse);
     }
 

@@ -176,6 +176,30 @@ public enum ErrorCode {
             1401,
             "Bookmark not found",
             HttpStatus.NOT_FOUND),
+    FOLDER_NOT_FOUND(
+            1402,
+            "Folder does not exist",
+            HttpStatus.NOT_FOUND),
+
+    FOLDER_NAME_EMPTY(
+            1403,
+            "Folder name cannot be empty",
+            HttpStatus.BAD_REQUEST),
+
+    FOLDER_ALREADY_EXISTS(
+            1404,
+            "Folder name already exists",
+            HttpStatus.BAD_REQUEST),
+
+    PAPER_ALREADY_SAVED(
+            1405,
+            "Paper already saved",
+            HttpStatus.BAD_REQUEST),
+
+    SAVED_PAPER_NOT_FOUND(
+            1406,
+            "Saved paper not found",
+            HttpStatus.NOT_FOUND),
 
     // Report Ticket
     REPORT_NOT_FOUND(
@@ -267,7 +291,16 @@ public enum ErrorCode {
     DISCOUNT_NOT_APPLICABLE(
             3005,
             "Discount is not applicable for this premium package",
+            HttpStatus.BAD_REQUEST),
+    SYNC_JOB_NOT_FOUND(
+            2002,
+            "Sync job not found",
             HttpStatus.NOT_FOUND),
+
+    API_SOURCE_INACTIVE(
+            2003,
+            "API source is currently inactive",
+            HttpStatus.BAD_REQUEST),
 
     // Notification
     NOTIFICATION_NOT_FOUND(
@@ -278,8 +311,17 @@ public enum ErrorCode {
     NOTIFICATION_ALREADY_READ(
             1802,
             "Notification is already marked as read",
-            HttpStatus.BAD_REQUEST);
+            HttpStatus.BAD_REQUEST),
 
+    DISCOUNT_ALREADY_ASSIGNED(
+        3006,
+                "Discount has already been assigned to this premium package",
+        HttpStatus.BAD_REQUEST),
+
+    DISCOUNT_NOT_ASSIGNED(
+            3007,
+                "Discount is not assigned to this premium package",
+        HttpStatus.NOT_FOUND);
     private final int code;
     private final String message;
     private final HttpStatus statusCode;
