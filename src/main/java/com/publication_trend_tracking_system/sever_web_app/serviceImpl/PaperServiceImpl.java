@@ -59,8 +59,8 @@ public class PaperServiceImpl implements PaperService {
     @Transactional(readOnly = true)
     public List<PaperResponse> getAllPapers(String keyword) {
         List<Paper> papers = (keyword == null || keyword.isBlank())
-                ? paperRepository.findAllByOrderByCreatedAtDesc()
-                : paperRepository.findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
+                ? paperRepository.findTop100ByOrderByCreatedAtDesc()
+                : paperRepository.findTop100ByTitleContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
 
         return papers.stream()
                 .map(this::toResponse)
@@ -297,7 +297,7 @@ public class PaperServiceImpl implements PaperService {
     @Override
     @Transactional(readOnly = true)
     public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterTopics() {
-        return topicRepository.findAllTopicsWithCount().stream()
+        return topicRepository.findTop50TopicsWithCount().stream()
                 .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
                         .label((String) obj[1])
                         .value(String.valueOf(obj[0]))
