@@ -62,10 +62,7 @@ public class InvoiceServiceImpl
 //        Tạo invoice trước sau có admin thì sửa lại logic
         Discount discount =
                 discountRepository
-                        .findAll()
-                        .stream()
-                        .filter(Discount::getIsActive)
-                        .findFirst()
+                        .findFirstByIsActiveTrue()
                         .orElse(null);
 
         if(discount != null) {

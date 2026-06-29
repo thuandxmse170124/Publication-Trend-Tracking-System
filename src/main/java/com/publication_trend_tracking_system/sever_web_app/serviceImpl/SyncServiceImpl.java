@@ -93,11 +93,11 @@ public class SyncServiceImpl implements SyncService {
                 queries.add(customQuery.trim());
             } else {
                 // By default, query using topics name and keyword names
-                List<Topic> activeTopics = topicRepository.findAll();
+                List<Topic> activeTopics = topicRepository.findTop5TrendingTopicEntities();
                 for (Topic topic : activeTopics) {
                     queries.add(topic.getTopicName());
                 }
-                List<Keyword> activeKeywords = keywordRepository.findAll();
+                List<Keyword> activeKeywords = keywordRepository.findTop5TrendingKeywords();
                 for (Keyword keyword : activeKeywords) {
                     queries.add(keyword.getKeywordName());
                 }
