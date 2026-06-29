@@ -23,7 +23,7 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
 
-    @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(p)) " +
+    @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(DISTINCT p)) " +
            "FROM Paper p " +
            "LEFT JOIN p.authors a " +
            "LEFT JOIN p.journal j " +
