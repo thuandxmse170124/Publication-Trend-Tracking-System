@@ -39,6 +39,7 @@ public class PaperController {
             @RequestParam(required = false) Integer toYear,
             @RequestParam(required = false) String institution,
             @RequestParam(required = false) java.util.List<String> types,
+            @RequestParam(required = false) Boolean isOpenAccess,
             @RequestParam(required = false) Integer fieldId,
             @RequestParam(required = false) Integer topicId,
             @RequestParam(defaultValue = "0") int page,
@@ -60,7 +61,7 @@ public class PaperController {
         return ApiResponse.<Page<PaperResponse>>builder()
                 .code(1000)
                 .message("Get papers success")
-                .result(paperService.searchPapers(keyword, author, journal, fromYear, toYear, institution, types, fieldId, topicId, pageable))
+                .result(paperService.searchPapers(keyword, author, journal, fromYear, toYear, institution, types, isOpenAccess, fieldId, topicId, pageable))
                 .build();
     }
 
