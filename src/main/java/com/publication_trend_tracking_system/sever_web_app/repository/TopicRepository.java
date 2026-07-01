@@ -10,7 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, Integer> {
-    Optional<Topic> findByTopicNameIgnoreCase(String topicName);
+    Optional<Topic> findFirstByTopicNameIgnoreCase(String topicName);
+    java.util.List<Topic> findAllByTopicNameInIgnoreCase(java.util.Collection<String> topicNames);
 
     @Query(value = "SELECT t.topic_id, t.topic_name, t.description, " +
                    "(SELECT COUNT(*) FROM follow_topic ft WHERE ft.topic_id = t.topic_id) as follower_count, " +
@@ -30,6 +31,9 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
 
     @Query("SELECT COUNT(p) FROM Paper p JOIN p.topics t WHERE t.topicId = :topicId")
     long countPapersByTopicId(@Param("topicId") Integer topicId);
+
+    @Query("SELECT t.topicId, COUNT(p) FROM Topic t LEFT JOIN t.papers p WHERE t.topicId IN :topicIds GROUP BY t.topicId")
+    java.util.List<Object[]> countPapersByTopicIds(@Param("topicIds") java.util.List<Integer> topicIds);
 
     @Query(value = "SELECT TOP 5 t.* FROM topics t " +
                    "LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id " +

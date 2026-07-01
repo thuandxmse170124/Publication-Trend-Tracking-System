@@ -20,6 +20,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class PaperServiceImpl implements PaperService {
 
     private final PaperRepository paperRepository;
@@ -29,6 +30,8 @@ public class PaperServiceImpl implements PaperService {
     private final AuthorRepository authorRepository;
     private final KeywordRepository keywordRepository;
     private final TopicRepository topicRepository;
+    private final SyncJobRepository syncJobRepository;
+    private final com.publication_trend_tracking_system.sever_web_app.service.SyncService syncService;
 
     @Override
     @Transactional
@@ -104,7 +107,7 @@ public class PaperServiceImpl implements PaperService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Page<PaperResponse> searchPapers(
             String keyword,
             String author,
@@ -113,6 +116,7 @@ public class PaperServiceImpl implements PaperService {
             Integer toYear,
             String institution,
             List<String> types,
+            Boolean isOpenAccess,
             Integer fieldId,
             Integer topicId,
             Pageable pageable) {
@@ -123,7 +127,8 @@ public class PaperServiceImpl implements PaperService {
         String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
         List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
-        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, fieldId, topicId, pageable);
+        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
+
         return papers.map(this::toResponse);
     }
 
@@ -137,13 +142,34 @@ public class PaperServiceImpl implements PaperService {
 
         // Resolve Keywords
         Set<Keyword> keywords = new HashSet<>();
-        if (request.getKeywords() != null) {
-            for (String kwName : request.getKeywords()) {
-                if (kwName == null || kwName.isBlank()) continue;
-                String trimmed = kwName.trim();
-                Keyword keyword = keywordRepository.findByKeywordNameIgnoreCase(trimmed)
-                        .orElseGet(() -> keywordRepository.save(Keyword.builder().keywordName(trimmed).build()));
-                keywords.add(keyword);
+        if (request.getKeywords() != null && !request.getKeywords().isEmpty()) {
+            java.util.Set<String> kwNames = request.getKeywords().stream()
+                    .filter(k -> k != null && !k.isBlank())
+                    .map(String::trim)
+                    .collect(java.util.stream.Collectors.toSet());
+                    
+            if (!kwNames.isEmpty()) {
+                java.util.List<Keyword> existing = keywordRepository.findAllByKeywordNameInIgnoreCase(kwNames);
+                java.util.Map<String, Keyword> existingMap = new java.util.HashMap<>();
+                for (Keyword k : existing) {
+                    existingMap.put(k.getKeywordName().toLowerCase(), k);
+                }
+                
+                java.util.List<Keyword> toSave = new java.util.ArrayList<>();
+                for (String kwName : kwNames) {
+                    String lower = kwName.toLowerCase();
+                    if (existingMap.containsKey(lower)) {
+                        keywords.add(existingMap.get(lower));
+                    } else {
+                        Keyword newK = Keyword.builder().keywordName(kwName).build();
+                        toSave.add(newK);
+                        keywords.add(newK);
+                        existingMap.put(lower, newK);
+                    }
+                }
+                if (!toSave.isEmpty()) {
+                    keywordRepository.saveAll(toSave);
+                }
             }
         }
         paper.setKeywords(keywords);
