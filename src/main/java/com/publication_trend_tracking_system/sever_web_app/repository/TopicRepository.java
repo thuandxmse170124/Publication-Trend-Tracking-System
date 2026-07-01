@@ -11,6 +11,7 @@ import java.util.Optional;
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, Integer> {
     Optional<Topic> findFirstByTopicNameIgnoreCase(String topicName);
+    Optional<Topic> findByTopicNameIgnoreCase(String topicName);
     java.util.List<Topic> findAllByTopicNameInIgnoreCase(java.util.Collection<String> topicNames);
 
     @Query(value = "SELECT t.topic_id, t.topic_name, t.description, " +
@@ -37,10 +38,23 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
 
     @Query(value = "SELECT TOP 5 t.* FROM topics t " +
                    "LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id " +
+
+                   "LEFT JOIN papers p ON pt.paper_id = p.paper_id " +
                    "GROUP BY t.topic_id, t.topic_name, t.description " +
-                   "ORDER BY COUNT(pt.paper_id) DESC", nativeQuery = true)
+                   "ORDER BY SUM(ISNULL(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1), 0)) DESC", nativeQuery = true)
     java.util.List<Topic> findTop5TrendingTopics();
 
-    @Query(value = "SELECT TOP 50 t.topic_id, t.topic_name, COUNT(pt.paper_id) FROM topics t LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id GROUP BY t.topic_id, t.topic_name ORDER BY COUNT(pt.paper_id) DESC", nativeQuery = true)
+    @Query(value = "SELECT TOP 5 t.* FROM topics t " +
+                   "LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id " +
+                   "LEFT JOIN papers p ON pt.paper_id = p.paper_id " +
+                   "WHERE p.field_id = :fieldId " +
+                   "GROUP BY t.topic_id, t.topic_name, t.description " +
+                   "ORDER BY SUM(ISNULL(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1), 0)) DESC", nativeQuery = true)
+    java.util.List<Topic> findTop5PersonalizedTrendingTopics(@Param("fieldId") Integer fieldId);
+
+    @Query(value = "SELECT TOP 50 t.topic_id, t.topic_name, SUM(ISNULL(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1), 0)) AS TrendScore " +
+                   "FROM topics t LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id LEFT JOIN papers p ON pt.paper_id = p.paper_id " +
+                   "GROUP BY t.topic_id, t.topic_name " +
+                   "ORDER BY TrendScore DESC", nativeQuery = true)
     java.util.List<Object[]> findTop50TopicsWithCount();
 }

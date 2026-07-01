@@ -6,3 +6,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ApiSourceRepository extends JpaRepository<ApiSource, Integer> {
     java.util.Optional<ApiSource> findByStatusIgnoreCase(String status);
 }
+
