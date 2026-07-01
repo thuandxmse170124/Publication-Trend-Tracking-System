@@ -9,5 +9,4 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SyncJobRepository extends JpaRepository<SyncJob, Long> {
     Page<SyncJob> findAllByOrderByStartedAtDesc(Pageable pageable);
-    boolean existsByCustomQueryAndStatus(String customQuery, String status);
 }
