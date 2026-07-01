@@ -20,12 +20,9 @@ public class AdminUserServiceImpl
     private final UserRepository userRepository;
 
     @Override
-    public List<UserResponse> getAllUsers() {
-
-        return userRepository.findAll()
-                .stream()
-                .map(this::toResponse)
-                .toList();
+    public org.springframework.data.domain.Page<UserResponse> getAllUsers(org.springframework.data.domain.Pageable pageable) {
+        return userRepository.findAll(pageable)
+                .map(this::toResponse);
     }
 
     @Override
