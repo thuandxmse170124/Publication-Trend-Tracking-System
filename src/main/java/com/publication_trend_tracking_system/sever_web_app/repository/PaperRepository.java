@@ -13,7 +13,11 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     boolean existsByDoi(String doi);
 
+    java.util.Optional<Paper> findFirstByDoiIgnoreCase(String doi);
+
     java.util.Optional<Paper> findByDoiIgnoreCase(String doi);
+    List<Paper> findAllByDoiInIgnoreCase(java.util.Set<String> dois);
+    List<Paper> findAllByTitleInIgnoreCase(java.util.Set<String> titles);
 
     java.util.List<Paper> findByTitleIgnoreCase(String title);
 
@@ -22,13 +26,11 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
 
-
     @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()) + 1, 0)", nativeQuery = true)
     long countPapersThisMonth();
 
     @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()) - 1, 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0)", nativeQuery = true)
     long countPapersLastMonth();
-
     @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(DISTINCT p)) " +
            "FROM Paper p " +
            "LEFT JOIN p.authors a " +
@@ -120,4 +122,9 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @Param("topicId") Integer topicId,
             Pageable pageable
     );
+    @Query(value = "SELECT TOP 5 p.* FROM papers p " +
+                   "JOIN paper_topics pt ON p.paper_id = pt.paper_id " +
+                   "WHERE pt.topic_id = :topicId AND p.paper_id != :paperId " +
+                   "ORDER BY (CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1)) DESC", nativeQuery = true)
+    List<Paper> findRelatedPapers(@Param("paperId") Long paperId, @Param("topicId") Integer topicId);
 }

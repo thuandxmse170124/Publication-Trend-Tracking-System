@@ -10,33 +10,36 @@ import java.util.Optional;
 
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, Integer> {
-    Optional<Topic> findByTopicName(String topicName);
-    Optional<Topic> findByTopicNameIgnoreCase(String topicName);
+    Optional<Topic> findFirstByTopicNameIgnoreCase(String topicName);
+    java.util.List<Topic> findAllByTopicNameInIgnoreCase(java.util.Collection<String> topicNames);
 
-    @Query(value = "SELECT t.topic_id, t.topic_name, COUNT(ft.user_id) as follower_count " +
+    @Query(value = "SELECT t.topic_id, t.topic_name, t.description, " +
+                   "(SELECT COUNT(*) FROM follow_topic ft WHERE ft.topic_id = t.topic_id) as follower_count, " +
+                   "(SELECT COUNT(*) FROM paper_topics pt WHERE pt.topic_id = t.topic_id) as paper_count " +
                    "FROM topics t " +
-                   "LEFT JOIN follow_topic ft ON t.topic_id = ft.topic_id " +
-                   "GROUP BY t.topic_id, t.topic_name " +
-                   "ORDER BY follower_count DESC " +
-                   "OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY", nativeQuery = true)
-    java.util.List<Object[]> findTop5TrendingTopics();
-
-    @Query(value = "SELECT t.topic_id, t.topic_name, t.description, COUNT(ft.user_id) as follower_count " +
-                   "FROM topics t " +
-                   "LEFT JOIN follow_topic ft ON t.topic_id = ft.topic_id " +
-                   "GROUP BY t.topic_id, t.topic_name, t.description " +
                    "ORDER BY follower_count DESC " +
                    "OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY", nativeQuery = true)
     java.util.List<Object[]> findTop5TrendingTopicsRaw();
 
+    @Query(value = "SELECT t.topic_id as topicId, t.topic_name as topicName, t.description as description, COUNT(pt.paper_id) as paperCount " +
+                   "FROM topics t " +
+                   "LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id " +
+                   "GROUP BY t.topic_id, t.topic_name, t.description",
+           countQuery = "SELECT COUNT(topic_id) FROM topics",
+           nativeQuery = true)
+    org.springframework.data.domain.Page<Object[]> findAllTopicsWithPaperCount(org.springframework.data.domain.Pageable pageable);
+
     @Query("SELECT COUNT(p) FROM Paper p JOIN p.topics t WHERE t.topicId = :topicId")
     long countPapersByTopicId(@Param("topicId") Integer topicId);
 
-    @Query(value = "SELECT TOP 20 t.* FROM topics t " +
+    @Query("SELECT t.topicId, COUNT(p) FROM Topic t LEFT JOIN t.papers p WHERE t.topicId IN :topicIds GROUP BY t.topicId")
+    java.util.List<Object[]> countPapersByTopicIds(@Param("topicIds") java.util.List<Integer> topicIds);
+
+    @Query(value = "SELECT TOP 5 t.* FROM topics t " +
                    "LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id " +
                    "GROUP BY t.topic_id, t.topic_name, t.description " +
                    "ORDER BY COUNT(pt.paper_id) DESC", nativeQuery = true)
-    java.util.List<Topic> findTop20TrendingTopicEntities();
+    java.util.List<Topic> findTop5TrendingTopics();
 
     @Query(value = "SELECT TOP 50 t.topic_id, t.topic_name, COUNT(pt.paper_id) FROM topics t LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id GROUP BY t.topic_id, t.topic_name ORDER BY COUNT(pt.paper_id) DESC", nativeQuery = true)
     java.util.List<Object[]> findTop50TopicsWithCount();
