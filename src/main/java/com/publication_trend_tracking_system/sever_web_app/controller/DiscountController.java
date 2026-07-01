@@ -12,8 +12,9 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/discounts")
-@SecurityRequirement(name = "api")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "api")
+
 public class DiscountController {
 
 

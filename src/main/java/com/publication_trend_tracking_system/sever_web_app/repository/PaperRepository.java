@@ -15,7 +15,11 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     java.util.Optional<Paper> findFirstByDoiIgnoreCase(String doi);
 
+    java.util.Optional<Paper> findByDoiIgnoreCase(String doi);
+
     java.util.List<Paper> findByTitleIgnoreCase(String title);
+
+    List<Paper> findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
 
     List<Paper> findTop100ByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
 
@@ -70,6 +74,7 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
            "ORDER BY COUNT(p.paperId) DESC")
     java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.TopJournalResponse> findTopJournalsByPaperCount(@Param("fieldId") Integer fieldId, org.springframework.data.domain.Pageable pageable);
 
+
     @Query(value = "SELECT DISTINCT p FROM Paper p " +
              "LEFT JOIN p.authors a " +
              "LEFT JOIN p.journal j " +
@@ -113,7 +118,6 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @Param("topicId") Integer topicId,
             Pageable pageable
     );
-
     @Query(value = "SELECT TOP 5 p.* FROM papers p " +
                    "JOIN paper_topics pt ON p.paper_id = pt.paper_id " +
                    "WHERE pt.topic_id = :topicId AND p.paper_id != :paperId " +
