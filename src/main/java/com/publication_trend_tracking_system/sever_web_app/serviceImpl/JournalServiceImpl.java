@@ -23,8 +23,8 @@ public class JournalServiceImpl implements JournalService {
     }
 
     @Override
-    public java.util.List<JournalResponse> getAllJournals() {
-        return journalRepository.findAll().stream().map(this::toResponse).toList();
+    public org.springframework.data.domain.Page<JournalResponse> getAllJournals(org.springframework.data.domain.Pageable pageable) {
+        return journalRepository.findAll(pageable).map(this::toResponse);
     }
 
     private JournalResponse toResponse(Journal journal) {

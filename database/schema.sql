@@ -78,6 +78,7 @@ CREATE TABLE users (
     affiliation        VARCHAR(255),
     status             VARCHAR(20)  NOT NULL DEFAULT 'pending' CONSTRAINT chk_users_status CHECK (status IN ('active','inactive','pending', 'ACTIVE', 'INACTIVE', 'BANNED', 'PENDING')),
     proof_document_url VARCHAR(500),
+    primary_field_id   INT,
     created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id),
@@ -179,6 +180,10 @@ CREATE TABLE research_fields (
     description  VARCHAR(MAX),
     PRIMARY KEY (field_id)
 );
+GO
+
+-- Add foreign key from users to research_fields
+ALTER TABLE users ADD CONSTRAINT fk_users_field FOREIGN KEY (primary_field_id) REFERENCES research_fields(field_id);
 GO
 
 -- ============================================================
@@ -519,8 +524,9 @@ FROM papers p
 JOIN paper_authors pa ON p.paper_id = pa.paper_id
 JOIN authors a ON pa.author_id = a.author_id;
 GO
-C R E A T E   I N D E X   i d x _ p a p e r s _ t i t l e   O N   p a p e r s ( t i t l e ) ;  
- C R E A T E   I N D E X   i d x _ p a p e r s _ c r e a t e d _ a t   O N   p a p e r s ( c r e a t e d _ a t ) ;  
- C R E A T E   I N D E X   i d x _ a u t h o r s _ f u l l n a m e   O N   a u t h o r s ( f u l l _ n a m e ) ;  
- C R E A T E   I N D E X   i d x _ j o u r n a l s _ n a m e   O N   j o u r n a l s ( n a m e ) ;  
- 
+
+-- Added for Sync performance
+CREATE INDEX idx_papers_title ON papers (title);
+CREATE INDEX idx_papers_created_at ON papers (created_at);
+CREATE INDEX idx_authors_fullname ON authors (full_name);
+CREATE INDEX idx_journals_name ON journals (name);

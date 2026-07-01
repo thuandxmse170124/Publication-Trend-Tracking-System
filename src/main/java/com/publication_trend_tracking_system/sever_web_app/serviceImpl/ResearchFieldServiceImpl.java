@@ -18,8 +18,8 @@ public class ResearchFieldServiceImpl implements ResearchFieldService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ResearchFieldResponse> getAllFields() {
-        return fieldRepository.findAll().stream().map(this::toResponse).toList();
+    public org.springframework.data.domain.Page<ResearchFieldResponse> getAllFields(org.springframework.data.domain.Pageable pageable) {
+        return fieldRepository.findAll(pageable).map(this::toResponse);
     }
 
     private ResearchFieldResponse toResponse(ResearchField field) {

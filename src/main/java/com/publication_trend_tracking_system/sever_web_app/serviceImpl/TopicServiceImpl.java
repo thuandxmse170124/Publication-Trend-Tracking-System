@@ -30,8 +30,17 @@ public class TopicServiceImpl implements TopicService {
     @Transactional(readOnly = true)
     public Page<TopicResponse> getAllTopics(Pageable pageable) {
         Page<Topic> topics = topicRepository.findAll(pageable);
+        
+        List<Integer> topicIds = topics.getContent().stream().map(Topic::getTopicId).toList();
+        java.util.Map<Integer, Long> countMap = new java.util.HashMap<>();
+        if (!topicIds.isEmpty()) {
+            for (Object[] row : topicRepository.countPapersByTopicIds(topicIds)) {
+                countMap.put((Integer) row[0], ((Number) row[1]).longValue());
+            }
+        }
+        
         return topics.map(topic -> {
-            long paperCount = topicRepository.countPapersByTopicId(topic.getTopicId());
+            long paperCount = countMap.getOrDefault(topic.getTopicId(), 0L);
             return TopicResponse.builder()
                     .topicId(topic.getTopicId())
                     .topicName(topic.getTopicName())
@@ -67,11 +76,21 @@ public class TopicServiceImpl implements TopicService {
     @Override
     @Transactional(readOnly = true)
     public java.util.List<TopicResponse> getTrendingTopics() {
-        return topicRepository.findTop5TrendingTopicsRaw().stream().map(obj -> {
+        java.util.List<Object[]> trendingRaw = topicRepository.findTop5TrendingTopicsRaw();
+        List<Integer> topicIds = trendingRaw.stream().map(obj -> (Integer) obj[0]).toList();
+        
+        java.util.Map<Integer, Long> countMap = new java.util.HashMap<>();
+        if (!topicIds.isEmpty()) {
+            for (Object[] row : topicRepository.countPapersByTopicIds(topicIds)) {
+                countMap.put((Integer) row[0], ((Number) row[1]).longValue());
+            }
+        }
+
+        return trendingRaw.stream().map(obj -> {
             Integer topicId = (Integer) obj[0];
             String topicName = (String) obj[1];
             String description = (String) obj[2];
-            long paperCount = topicRepository.countPapersByTopicId(topicId);
+            long paperCount = countMap.getOrDefault(topicId, 0L);
             return TopicResponse.builder()
                     .topicId(topicId)
                     .topicName(topicName)
