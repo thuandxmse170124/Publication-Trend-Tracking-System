@@ -64,6 +64,24 @@ public class TopicServiceImpl implements TopicService {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<TopicResponse> getTrendingTopics() {
+        return topicRepository.findTop5TrendingTopicsRaw().stream().map(obj -> {
+            Integer topicId = (Integer) obj[0];
+            String topicName = (String) obj[1];
+            String description = (String) obj[2];
+            long paperCount = topicRepository.countPapersByTopicId(topicId);
+            return TopicResponse.builder()
+                    .topicId(topicId)
+                    .topicName(topicName)
+                    .description(description)
+                    .paperCount(paperCount)
+                    .latestPapers(null)
+                    .build();
+        }).toList();
+    }
+
     private PaperResponse toPaperResponse(Paper paper) {
         List<AuthorResponse> authorResponses = paper.getAuthors().stream()
                 .map(author -> AuthorResponse.builder()

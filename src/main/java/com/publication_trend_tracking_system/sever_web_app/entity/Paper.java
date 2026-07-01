@@ -64,6 +64,9 @@ public class Paper {
     @Column(name = "visibility_status", nullable = false)
     private PaperVisibilityStatus visibilityStatus;
 
+    @Column(name = "is_open_access")
+    private Boolean isOpenAccess;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "paper_authors",

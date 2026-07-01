@@ -11,6 +11,7 @@ import java.util.Optional;
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, Integer> {
     Optional<Topic> findFirstByTopicNameIgnoreCase(String topicName);
+    Optional<Topic> findByTopicNameIgnoreCase(String topicName);
     java.util.List<Topic> findAllByTopicNameInIgnoreCase(java.util.Collection<String> topicNames);
 
     @Query(value = "SELECT t.topic_id, t.topic_name, t.description, COUNT(ft.user_id) as follower_count " +
@@ -21,11 +22,14 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
                    "OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY", nativeQuery = true)
     java.util.List<Object[]> findTop5TrendingTopicsRaw();
 
+
+
     @Query("SELECT COUNT(p) FROM Paper p JOIN p.topics t WHERE t.topicId = :topicId")
     long countPapersByTopicId(@Param("topicId") Integer topicId);
 
     @Query(value = "SELECT TOP 5 t.* FROM topics t " +
                    "LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id " +
+
                    "LEFT JOIN papers p ON pt.paper_id = p.paper_id " +
                    "GROUP BY t.topic_id, t.topic_name, t.description " +
                    "ORDER BY SUM(ISNULL(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1), 0)) DESC", nativeQuery = true)

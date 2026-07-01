@@ -13,8 +13,13 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     boolean existsByDoi(String doi);
 
-    List<Paper> findTop100ByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
+    java.util.Optional<Paper> findByDoiIgnoreCase(String doi);
 
+    java.util.List<Paper> findByTitleIgnoreCase(String title);
+
+    List<Paper> findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
+
+    List<Paper> findTop100ByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
     List<Paper> findTop100ByOrderByCreatedAtDesc();
 
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
@@ -72,14 +77,22 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
            "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR p.paperAbstract LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
            "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
            "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
-           "AND (:year IS NULL OR p.publicationYear = :year) " +
+           "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
+           "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
+           "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
+           "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
+           "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
            "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
            "AND (:topicId IS NULL OR t.topicId = :topicId)")
     Page<Paper> searchPapers(
             @Param("keyword") String keyword,
             @Param("author") String author,
             @Param("journal") String journal,
-            @Param("year") Integer year,
+            @Param("fromYear") Integer fromYear,
+            @Param("toYear") Integer toYear,
+            @Param("institution") String institution,
+            @Param("types") List<String> types,
+            @Param("isOpenAccess") Boolean isOpenAccess,
             @Param("fieldId") Integer fieldId,
             @Param("topicId") Integer topicId,
             Pageable pageable
