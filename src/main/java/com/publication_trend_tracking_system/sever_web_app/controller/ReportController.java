@@ -44,7 +44,7 @@ public class ReportController {
                 .build();
     }
 
-    @GetMapping
+    @GetMapping("/admin")
     public ApiResponse<?> getAllReports() {
 
         return ApiResponse.builder()
