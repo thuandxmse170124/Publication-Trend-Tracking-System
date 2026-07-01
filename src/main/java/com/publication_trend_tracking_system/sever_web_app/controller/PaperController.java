@@ -43,12 +43,18 @@ public class PaperController {
             @RequestParam(required = false) Integer topicId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "publicationYear") String sortBy,
             @RequestParam(defaultValue = "desc") String direction) {
 
-        Sort sort = direction.equalsIgnoreCase("asc") 
-                ? Sort.by(sortBy).ascending() 
-                : Sort.by(sortBy).descending();
+        // Whitelist allowed sort fields to prevent injection
+        String safeSortBy = switch (sortBy) {
+            case "publicationYear", "title", "createdAt" -> sortBy;
+            default -> "publicationYear";
+        };
+
+        Sort sort = direction.equalsIgnoreCase("asc")
+                ? Sort.by(safeSortBy).ascending()
+                : Sort.by(safeSortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
         return ApiResponse.<Page<PaperResponse>>builder()

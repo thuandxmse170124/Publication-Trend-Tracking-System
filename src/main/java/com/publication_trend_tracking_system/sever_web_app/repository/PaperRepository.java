@@ -22,11 +22,15 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     java.util.List<Paper> findByTitleIgnoreCase(String title);
 
     List<Paper> findTop100ByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
-
     List<Paper> findTop100ByOrderByCreatedAtDesc();
 
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
 
+    @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()) + 1, 0)", nativeQuery = true)
+    long countPapersThisMonth();
+
+    @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()) - 1, 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0)", nativeQuery = true)
+    long countPapersLastMonth();
     @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(DISTINCT p)) " +
            "FROM Paper p " +
            "LEFT JOIN p.authors a " +
