@@ -18,7 +18,6 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     java.util.List<Paper> findByTitleIgnoreCase(String title);
 
     List<Paper> findTop100ByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
-
     List<Paper> findTop100ByOrderByCreatedAtDesc();
 
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
