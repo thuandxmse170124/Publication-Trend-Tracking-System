@@ -8,16 +8,21 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: false
 
     properties:
       hibernate:
         format_sql: true
+        default_batch_fetch_size: 50
 
   mail:
     host: smtp.gmail.com
     port: 587
 
 server:
-  port: 8080        default_batch_fetch_size: 50
+  port: 8080
+
+app:
+  sync:
+    cron: "0 0 * * * ?"
