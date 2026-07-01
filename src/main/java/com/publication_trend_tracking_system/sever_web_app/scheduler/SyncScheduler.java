@@ -18,7 +18,7 @@ public class SyncScheduler {
     private final SyncService syncService;
     private final ApiSourceRepository apiSourceRepository;
 
-    @Scheduled(cron = "${app.sync.cron:0 */5 * * * ?}")
+    @Scheduled(cron = "${app.sync.cron:0 0 2 * * ?}")
     public void runScheduledSync() {
         log.info("Starting scheduled background synchronization task...");
         List<ApiSource> activeSources = apiSourceRepository.findAll();
