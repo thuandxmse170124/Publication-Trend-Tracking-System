@@ -70,6 +70,11 @@ public class SyncServiceImpl implements SyncService {
             .build();
 
     @Override
+    public SyncJobResponse syncAll(Integer sourceId, Long userId) {
+        return syncFromSource(sourceId, userId, null);
+    }
+
+    @Override
     public SyncJobResponse syncFromSource(Integer sourceId, Long userId, String customQuery) {
         ApiSource source = apiSourceRepository.findById(sourceId)
                 .orElseThrow(() -> new AppException(ErrorCode.API_SOURCE_NOT_FOUND));

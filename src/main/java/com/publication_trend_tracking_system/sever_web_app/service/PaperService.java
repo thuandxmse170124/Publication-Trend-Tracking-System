@@ -27,6 +27,7 @@ public interface PaperService {
             Integer toYear,
             String institution,
             List<String> types,
+            Boolean isOpenAccess,
             Integer fieldId,
             Integer topicId,
             Pageable pageable
