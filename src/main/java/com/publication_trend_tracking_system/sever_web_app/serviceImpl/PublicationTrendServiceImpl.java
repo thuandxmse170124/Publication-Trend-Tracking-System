@@ -27,7 +27,7 @@ public class PublicationTrendServiceImpl implements PublicationTrendService {
         String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
         List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
-        return paperRepository.countPapersByYearWithFilters(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId);
+        return paperRepository.countPapersByYearWithFilters(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, fieldId, topicId);
     }
 
     @Override

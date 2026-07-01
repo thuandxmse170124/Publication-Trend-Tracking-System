@@ -29,23 +29,13 @@ public class TopicServiceImpl implements TopicService {
     @Override
     @Transactional(readOnly = true)
     public Page<TopicResponse> getAllTopics(Pageable pageable) {
-        Page<Topic> topics = topicRepository.findAll(pageable);
-        
-        List<Integer> topicIds = topics.getContent().stream().map(Topic::getTopicId).toList();
-        java.util.Map<Integer, Long> countMap = new java.util.HashMap<>();
-        if (!topicIds.isEmpty()) {
-            for (Object[] row : topicRepository.countPapersByTopicIds(topicIds)) {
-                countMap.put((Integer) row[0], ((Number) row[1]).longValue());
-            }
-        }
-        
-        return topics.map(topic -> {
-            long paperCount = countMap.getOrDefault(topic.getTopicId(), 0L);
+        Page<Object[]> topics = topicRepository.findAllTopicsWithPaperCount(pageable);
+        return topics.map(obj -> {
             return TopicResponse.builder()
-                    .topicId(topic.getTopicId())
-                    .topicName(topic.getTopicName())
-                    .description(topic.getDescription())
-                    .paperCount(paperCount)
+                    .topicId((Integer) obj[0])
+                    .topicName((String) obj[1])
+                    .description((String) obj[2])
+                    .paperCount(((Number) obj[3]).longValue())
                     .latestPapers(null)
                     .build();
         });
@@ -76,21 +66,11 @@ public class TopicServiceImpl implements TopicService {
     @Override
     @Transactional(readOnly = true)
     public java.util.List<TopicResponse> getTrendingTopics() {
-        java.util.List<Object[]> trendingRaw = topicRepository.findTop5TrendingTopicsRaw();
-        List<Integer> topicIds = trendingRaw.stream().map(obj -> (Integer) obj[0]).toList();
-        
-        java.util.Map<Integer, Long> countMap = new java.util.HashMap<>();
-        if (!topicIds.isEmpty()) {
-            for (Object[] row : topicRepository.countPapersByTopicIds(topicIds)) {
-                countMap.put((Integer) row[0], ((Number) row[1]).longValue());
-            }
-        }
-
-        return trendingRaw.stream().map(obj -> {
+        return topicRepository.findTop5TrendingTopicsRaw().stream().map(obj -> {
             Integer topicId = (Integer) obj[0];
             String topicName = (String) obj[1];
             String description = (String) obj[2];
-            long paperCount = countMap.getOrDefault(topicId, 0L);
+            long paperCount = ((Number) obj[4]).longValue();
             return TopicResponse.builder()
                     .topicId(topicId)
                     .topicName(topicName)
