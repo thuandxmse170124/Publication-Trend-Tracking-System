@@ -9,6 +9,7 @@ import java.util.Optional;
 @Repository
 public interface KeywordRepository extends JpaRepository<Keyword, Integer> {
     Optional<Keyword> findFirstByKeywordNameIgnoreCase(String keywordName);
+    Optional<Keyword> findByKeywordNameIgnoreCase(String keywordName);
 
     @org.springframework.data.jpa.repository.Query(value = "SELECT TOP 50 k.keyword_name, COUNT(pk.paper_id) FROM keywords k JOIN paper_keywords pk ON k.keyword_id = pk.keyword_id GROUP BY k.keyword_name ORDER BY COUNT(pk.paper_id) DESC", nativeQuery = true)
     java.util.List<Object[]> findTop50KeywordNamesWithCount();
