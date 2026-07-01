@@ -78,6 +78,7 @@ CREATE TABLE users (
     affiliation        VARCHAR(255),
     status             VARCHAR(20)  NOT NULL DEFAULT 'pending' CONSTRAINT chk_users_status CHECK (status IN ('active','inactive','pending', 'ACTIVE', 'INACTIVE', 'BANNED', 'PENDING')),
     proof_document_url VARCHAR(500),
+    primary_field_id   INT,
     created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id),
@@ -179,6 +180,10 @@ CREATE TABLE research_fields (
     description  VARCHAR(MAX),
     PRIMARY KEY (field_id)
 );
+GO
+
+-- Add foreign key from users to research_fields
+ALTER TABLE users ADD CONSTRAINT fk_users_field FOREIGN KEY (primary_field_id) REFERENCES research_fields(field_id);
 GO
 
 -- ============================================================
