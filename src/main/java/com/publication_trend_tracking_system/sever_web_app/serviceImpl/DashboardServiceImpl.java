@@ -34,11 +34,12 @@ public class DashboardServiceImpl implements DashboardService {
     public SystemStatsResponse getSystemStats() {
         long totalPapers = paperRepository.count();
         
-        List<Object[]> topTopicsRaw = topicRepository.findTop5TrendingTopics();
-        List<TopicResponse> topTopics = topTopicsRaw.stream()
-                .map(obj -> TopicResponse.builder()
-                        .topicId((Integer) obj[0])
-                        .topicName((String) obj[1])
+        List<Topic> topTopicsEntity = topicRepository.findTop5TrendingTopics();
+        List<TopicResponse> topTopics = topTopicsEntity.stream()
+                .map(t -> TopicResponse.builder()
+                        .topicId(t.getTopicId())
+                        .topicName(t.getTopicName())
+                        .description(t.getDescription())
                         .build())
                 .collect(Collectors.toList());
 
