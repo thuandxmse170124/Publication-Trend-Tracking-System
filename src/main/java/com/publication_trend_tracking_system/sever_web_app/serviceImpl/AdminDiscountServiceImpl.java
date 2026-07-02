@@ -70,14 +70,7 @@ public class AdminDiscountServiceImpl
                                 new AppException(
                                         ErrorCode.DISCOUNT_NOT_FOUND));
 
-        if (premium.getDiscounts().contains(discount)) {
-
-            throw new AppException(
-                    ErrorCode.DISCOUNT_ALREADY_ASSIGNED
-            );
-        }
-
-        premium.getDiscounts().add(discount);
+        premium.setDiscount(discount);
 
         premiumRepository.save(premium);
     }
@@ -138,34 +131,16 @@ public class AdminDiscountServiceImpl
 
     @Override
     public void removeDiscountFromPremium(
-            Long premiumId,
-            Long discountId
+            Long premiumId
     ) {
 
         Premium premium =
-                premiumRepository
-                        .findById(premiumId)
+                premiumRepository.findById(premiumId)
                         .orElseThrow(() ->
                                 new AppException(
-                                        ErrorCode.PREMIUM_NOT_FOUND
-                                ));
+                                        ErrorCode.PREMIUM_NOT_FOUND));
 
-        Discount discount =
-                discountRepository
-                        .findById(discountId)
-                        .orElseThrow(() ->
-                                new AppException(
-                                        ErrorCode.DISCOUNT_NOT_FOUND
-                                ));
-
-        if (!premium.getDiscounts().contains(discount)) {
-
-            throw new AppException(
-                    ErrorCode.DISCOUNT_NOT_ASSIGNED
-            );
-        }
-
-        premium.getDiscounts().remove(discount);
+        premium.setDiscount(null);
 
         premiumRepository.save(premium);
     }

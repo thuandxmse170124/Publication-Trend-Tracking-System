@@ -26,7 +26,6 @@ public interface AdminDiscountService {
     );
 
     void removeDiscountFromPremium(
-            Long premiumId,
-            Long discountId
+            Long premiumId
     );
 }
