@@ -20,6 +20,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class PaperServiceImpl implements PaperService {
 
     private final PaperRepository paperRepository;
@@ -29,6 +30,8 @@ public class PaperServiceImpl implements PaperService {
     private final AuthorRepository authorRepository;
     private final KeywordRepository keywordRepository;
     private final TopicRepository topicRepository;
+    private final SyncJobRepository syncJobRepository;
+    private final com.publication_trend_tracking_system.sever_web_app.service.SyncService syncService;
 
     @Override
     @Transactional
@@ -47,6 +50,7 @@ public class PaperServiceImpl implements PaperService {
                 .sourceUrl(request.getSourceUrl())
                 .citationCount(request.getCitationCount())
                 .visibilityStatus(request.getVisibilityStatus())
+                .isOpenAccess(request.getIsOpenAccess())
                 .build();
 
         resolveRelationships(paper, request);
@@ -58,8 +62,8 @@ public class PaperServiceImpl implements PaperService {
     @Transactional(readOnly = true)
     public List<PaperResponse> getAllPapers(String keyword) {
         List<Paper> papers = (keyword == null || keyword.isBlank())
-                ? paperRepository.findAllByOrderByCreatedAtDesc()
-                : paperRepository.findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
+                ? paperRepository.findTop100ByOrderByCreatedAtDesc()
+                : paperRepository.findTop100ByTitleContainingIgnoreCaseOrderByCreatedAtDesc(keyword.trim());
 
         return papers.stream()
                 .map(this::toResponse)
@@ -89,6 +93,7 @@ public class PaperServiceImpl implements PaperService {
         existingPaper.setSourceUrl(request.getSourceUrl());
         existingPaper.setCitationCount(request.getCitationCount());
         existingPaper.setVisibilityStatus(request.getVisibilityStatus());
+        existingPaper.setIsOpenAccess(request.getIsOpenAccess());
 
         resolveRelationships(existingPaper, request);
 
@@ -102,20 +107,28 @@ public class PaperServiceImpl implements PaperService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Page<PaperResponse> searchPapers(
             String keyword,
             String author,
             String journal,
-            Integer year,
+            Integer fromYear,
+            Integer toYear,
+            String institution,
+            List<String> types,
+            Boolean isOpenAccess,
             Integer fieldId,
+            Integer topicId,
             Pageable pageable) {
 
         String kwParam = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
         String authParam = (author == null || author.isBlank()) ? null : author.trim();
         String jParam = (journal == null || journal.isBlank()) ? null : journal.trim();
+        String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
+        List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
-        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, year, fieldId, pageable);
+        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
+
         return papers.map(this::toResponse);
     }
 
@@ -129,13 +142,34 @@ public class PaperServiceImpl implements PaperService {
 
         // Resolve Keywords
         Set<Keyword> keywords = new HashSet<>();
-        if (request.getKeywords() != null) {
-            for (String kwName : request.getKeywords()) {
-                if (kwName == null || kwName.isBlank()) continue;
-                String trimmed = kwName.trim();
-                Keyword keyword = keywordRepository.findByKeywordNameIgnoreCase(trimmed)
-                        .orElseGet(() -> keywordRepository.save(Keyword.builder().keywordName(trimmed).build()));
-                keywords.add(keyword);
+        if (request.getKeywords() != null && !request.getKeywords().isEmpty()) {
+            java.util.Set<String> kwNames = request.getKeywords().stream()
+                    .filter(k -> k != null && !k.isBlank())
+                    .map(String::trim)
+                    .collect(java.util.stream.Collectors.toSet());
+                    
+            if (!kwNames.isEmpty()) {
+                java.util.List<Keyword> existing = keywordRepository.findAllByKeywordNameInIgnoreCase(kwNames);
+                java.util.Map<String, Keyword> existingMap = new java.util.HashMap<>();
+                for (Keyword k : existing) {
+                    existingMap.put(k.getKeywordName().toLowerCase(), k);
+                }
+                
+                java.util.List<Keyword> toSave = new java.util.ArrayList<>();
+                for (String kwName : kwNames) {
+                    String lower = kwName.toLowerCase();
+                    if (existingMap.containsKey(lower)) {
+                        keywords.add(existingMap.get(lower));
+                    } else {
+                        Keyword newK = Keyword.builder().keywordName(kwName).build();
+                        toSave.add(newK);
+                        keywords.add(newK);
+                        existingMap.put(lower, newK);
+                    }
+                }
+                if (!toSave.isEmpty()) {
+                    keywordRepository.saveAll(toSave);
+                }
             }
         }
         paper.setKeywords(keywords);
@@ -232,6 +266,7 @@ public class PaperServiceImpl implements PaperService {
                 .sourceUrl(paper.getSourceUrl())
                 .citationCount(paper.getCitationCount())
                 .visibilityStatus(paper.getVisibilityStatus())
+                .isOpenAccess(paper.getIsOpenAccess())
                 .createdAt(paper.getCreatedAt())
                 .updatedAt(paper.getUpdatedAt())
                 .authors(authorResponses)
@@ -247,5 +282,53 @@ public class PaperServiceImpl implements PaperService {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterKeywords() {
+        return keywordRepository.findTop50KeywordNamesWithCount().stream()
+                .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
+                        .label((String) obj[0])
+                        .value((String) obj[0])
+                        .count(((Number) obj[1]).longValue())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterJournals() {
+        return journalRepository.findTop50JournalNamesWithCount().stream()
+                .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
+                        .label((String) obj[0])
+                        .value((String) obj[0])
+                        .count(((Number) obj[1]).longValue())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterYears() {
+        return paperRepository.findDistinctYearsWithCount().stream()
+                .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
+                        .label(String.valueOf(obj[0]))
+                        .value(String.valueOf(obj[0]))
+                        .count(((Number) obj[1]).longValue())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterTopics() {
+        return topicRepository.findTop50TopicsWithCount().stream()
+                .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
+                        .label((String) obj[1])
+                        .value(String.valueOf(obj[0]))
+                        .count(((Number) obj[2]).longValue())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
     }
 }

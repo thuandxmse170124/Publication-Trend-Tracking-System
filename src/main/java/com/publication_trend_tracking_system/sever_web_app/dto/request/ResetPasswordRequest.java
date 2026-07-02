@@ -12,8 +12,11 @@ import lombok.*;
 @Builder
 public class ResetPasswordRequest {
 
-    @NotBlank(message = "TOKEN_REQUIRED")
-    private String token;
+    @NotBlank(message = "OTP_REQUIRED")
+    @Pattern(
+            regexp = "^\\d{6}$",
+            message = "OTP_INVALID")
+    private String otp;
 
     @NotBlank(message = "PASSWORD_REQUIRED")
     @Size(min = 8, message = "INVALID_PASSWORD")
@@ -21,4 +24,7 @@ public class ResetPasswordRequest {
             regexp = "^(?=.*[A-Z])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]).+$",
             message = "PASSWORD_INVALID_FORMAT")
     private String newPassword;
+
+    @NotBlank(message = "CONFIRM_PASSWORD_REQUIRED")
+    private String confirmPassword;
 }

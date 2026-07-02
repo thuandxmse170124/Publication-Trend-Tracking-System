@@ -4,4 +4,5 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.JournalR
 
 public interface JournalService {
     JournalResponse getJournalById(Integer journalId);
+    org.springframework.data.domain.Page<JournalResponse> getAllJournals(org.springframework.data.domain.Pageable pageable);
 }

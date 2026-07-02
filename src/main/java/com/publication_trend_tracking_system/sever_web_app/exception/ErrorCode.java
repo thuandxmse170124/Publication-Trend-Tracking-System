@@ -38,7 +38,18 @@ public enum ErrorCode {
             1102,
             "Email already exists",
             HttpStatus.BAD_REQUEST),
-
+    USER_INACTIVE(
+            1108,
+            "User account is inactive",
+            HttpStatus.FORBIDDEN),
+    CANNOT_MODIFY_ADMIN(
+            1110,
+            "Admin account cannot be modified",
+            HttpStatus.BAD_REQUEST),
+    USER_BANNED(
+            1109,
+            "User account has been banned",
+            HttpStatus.FORBIDDEN),
     ROLE_NOT_FOUND(
             1103,
             "Role not found",
@@ -63,12 +74,12 @@ public enum ErrorCode {
             1107,
             "OTP has expired",
             HttpStatus.BAD_REQUEST),
+
     OTP_REQUIRED(
-            1208,
+            1108,
             "OTP is required",
             HttpStatus.BAD_REQUEST),
-
-    // Validation
+  
     FULLNAME_REQUIRED(
             1201,
             "Full name is required",
@@ -78,12 +89,6 @@ public enum ErrorCode {
             1202,
             "Full name must be between {min} and {max} characters",
             HttpStatus.BAD_REQUEST),
-
-    EMAIL_REQUIRED(
-            1207,
-            "Email is required",
-            HttpStatus.BAD_REQUEST),
-
     INVALID_EMAIL(
             1203,
             "Invalid email format",
@@ -92,37 +97,74 @@ public enum ErrorCode {
             1204,
             "Password is required",
             HttpStatus.BAD_REQUEST),
-
     INVALID_PASSWORD(
             1205,
             "Password must be at least {min} characters",
             HttpStatus.BAD_REQUEST),
-
     PASSWORD_INVALID_FORMAT(
             1206,
             "Password must contain at least one uppercase letter and one special character",
             HttpStatus.BAD_REQUEST),
+    EMAIL_REQUIRED(
+            1207,
+            "Email is required",
+            HttpStatus.BAD_REQUEST),
+    PASSWORD_NOT_MATCH(
+            1209,
+            "Password and confirm password do not match",
+            HttpStatus.BAD_REQUEST),
 
     OLD_PASSWORD_REQUIRED(
-            1208,
+            1210,
             "Old password is required",
             HttpStatus.BAD_REQUEST),
-
-    INVALID_TOKEN(
-            1701,
-            "Invalid token",
+    CONFIRM_PASSWORD_REQUIRED(
+            1211,
+            "Confirm password is required",
             HttpStatus.BAD_REQUEST),
+//    Payment
+    INVOICE_NOT_FOUND(
+            4001,
+            "Invoice not found",
+            HttpStatus.NOT_FOUND
+    ),
 
-    TOKEN_EXPIRED(
-            1702,
-            "Token expired",
-            HttpStatus.BAD_REQUEST),
+    INVALID_INVOICE_STATUS(
+            4002,
+            "Invoice status is invalid",
+            HttpStatus.BAD_REQUEST
+    ),
 
-    TOKEN_REQUIRED(
-            1703,
-            "Token is required",
-            HttpStatus.BAD_REQUEST),
+    PAYMENT_CREATE_FAILED(
+            4003,
+            "Create payment failed",
+            HttpStatus.BAD_REQUEST
+    ),
 
+    PAYMENT_TRANSACTION_NOT_FOUND(
+            4004,
+            "Payment transaction not found",
+            HttpStatus.NOT_FOUND
+    ),
+
+    // Premium & Subscription
+    SUBSCRIPTION_NOT_FOUND(
+            4101,
+            "Subscription not found",
+            HttpStatus.NOT_FOUND
+    ),
+
+    PREMIUM_REQUIRED(
+            4102,
+            "Premium subscription required",
+            HttpStatus.FORBIDDEN
+    ),
+
+    SUBSCRIPTION_EXPIRED(
+            4103,
+            "Premium subscription has expired",
+            HttpStatus.FORBIDDEN
+    ),
     // Research Paper
     PAPER_NOT_FOUND(
             1301,
@@ -134,7 +176,31 @@ public enum ErrorCode {
             1401,
             "Bookmark not found",
             HttpStatus.NOT_FOUND),
+    FOLDER_NOT_FOUND(
+            1402,
+            "Folder does not exist",
+            HttpStatus.NOT_FOUND),
 
+    FOLDER_NAME_EMPTY(
+            1403,
+            "Folder name cannot be empty",
+            HttpStatus.BAD_REQUEST),
+
+    FOLDER_ALREADY_EXISTS(
+            1404,
+            "Folder name already exists",
+            HttpStatus.BAD_REQUEST),
+    
+    PAPER_ALREADY_SAVED(
+            1405,
+            "Paper already saved",
+            HttpStatus.BAD_REQUEST),
+
+    SAVED_PAPER_NOT_FOUND(
+            1406,
+            "Saved paper not found",
+            HttpStatus.NOT_FOUND),
+    
     // Report Ticket
     REPORT_NOT_FOUND(
             1501,
@@ -146,9 +212,39 @@ public enum ErrorCode {
             1601,
             "Research topic not found",
             HttpStatus.NOT_FOUND),
+    // Follow
+    TOPIC_ALREADY_FOLLOWED(
+        1701,
+                "Topic already followed",
+        HttpStatus.BAD_REQUEST),
+
+    TOPIC_NOT_FOLLOWED(
+        1702,
+                "You are not following this topic",
+        HttpStatus.BAD_REQUEST),
+
+    JOURNAL_ALREADY_FOLLOWED(
+        1703,
+                "Journal already followed",
+        HttpStatus.BAD_REQUEST),
+
+    JOURNAL_NOT_FOLLOWED(
+        1704,
+                "You are not following this journal",
+        HttpStatus.BAD_REQUEST),
+
+    AUTHOR_ALREADY_FOLLOWED(
+            1705,
+            "Author already followed",
+            HttpStatus.BAD_REQUEST),
+
+    AUTHOR_NOT_FOLLOWED(
+            1706,
+            "You are not following this author",
+            HttpStatus.BAD_REQUEST),
 
     AUTHOR_NOT_FOUND(
-            1701,
+            1707,
             "Author not found",
             HttpStatus.NOT_FOUND),
 
@@ -195,8 +291,28 @@ public enum ErrorCode {
     DISCOUNT_NOT_APPLICABLE(
             3005,
             "Discount is not applicable for this premium package",
-            HttpStatus.BAD_REQUEST);
+            HttpStatus.BAD_REQUEST),
+    SYNC_JOB_NOT_FOUND(
+            2002,
+            "Sync job not found",
+            HttpStatus.NOT_FOUND),
 
+    API_SOURCE_INACTIVE(
+            2003,
+            "API source is currently inactive",
+            HttpStatus.BAD_REQUEST),
+
+    DISCOUNT_ALREADY_ASSIGNED(
+        3006,
+                "Discount has already been assigned to this premium package",
+        HttpStatus.BAD_REQUEST
+        ),
+
+    DISCOUNT_NOT_ASSIGNED(
+        3007,
+                "Discount is not assigned to this premium package",
+        HttpStatus.NOT_FOUND
+        );
     private final int code;
     private final String message;
     private final HttpStatus statusCode;

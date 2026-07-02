@@ -10,7 +10,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "papers")
+@Table(name = "papers", indexes = {
+    @Index(name = "idx_papers_title", columnList = "title"),
+    @Index(name = "idx_papers_created_at", columnList = "created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -60,6 +63,9 @@ public class Paper {
     @Enumerated(EnumType.STRING)
     @Column(name = "visibility_status", nullable = false)
     private PaperVisibilityStatus visibilityStatus;
+
+    @Column(name = "is_open_access")
+    private Boolean isOpenAccess;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
