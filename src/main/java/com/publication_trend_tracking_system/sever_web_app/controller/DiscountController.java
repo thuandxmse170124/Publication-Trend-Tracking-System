@@ -34,13 +34,17 @@ public class DiscountController {
     }
 
     @GetMapping
-    public ApiResponse<List<DiscountResponse>> getAllDiscounts() {
+    public ApiResponse<org.springframework.data.domain.Page<DiscountResponse>> getAllDiscounts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
 
         return ApiResponse
-                .<List<DiscountResponse>>builder()
+                .<org.springframework.data.domain.Page<DiscountResponse>>builder()
                 .code(1000)
                 .message("Get Discounts Success")
-                .result(adminDiscountService.getAllDiscounts())
+                .result(adminDiscountService.getAllDiscounts(pageable))
                 .build();
     }
 

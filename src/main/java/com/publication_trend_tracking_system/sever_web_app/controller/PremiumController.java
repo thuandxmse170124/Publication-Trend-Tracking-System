@@ -34,6 +34,7 @@ public class PremiumController {
     }
 
     @GetMapping
+<<<<<<< feature/subscription
     public ApiResponse<List<PremiumResponse>> getAllPremiums() {
 
         return ApiResponse.<List<PremiumResponse>>builder()
@@ -101,6 +102,24 @@ public class PremiumController {
         return ApiResponse.<Void>builder()
                 .code(1000)
                 .message("Delete Premium Successfully")
+=======
+    public ApiResponse<org.springframework.data.domain.Page<PremiumResponse>>
+    getAllPremiums(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ApiResponse
+                .<org.springframework.data.domain.Page<PremiumResponse>>builder()
+                .code(
+                        1000)
+                .message(
+                        "Get Premiums Success")
+                .result(
+                        premiumService
+                                .getAllPremiums(pageable)
+                )
+>>>>>>> develop
                 .build();
     }
 

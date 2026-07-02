@@ -15,8 +15,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AdminDiscountServiceImpl
         implements AdminDiscountService {
 
@@ -44,12 +47,9 @@ public class AdminDiscountServiceImpl
     }
 
     @Override
-    public List<DiscountResponse> getAllDiscounts() {
-
-        return discountRepository.findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+    public org.springframework.data.domain.Page<DiscountResponse> getAllDiscounts(org.springframework.data.domain.Pageable pageable) {
+        return discountRepository.findAll(pageable)
+                .map(this::mapToResponse);
     }
 
     @Override

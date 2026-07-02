@@ -56,12 +56,15 @@ public class PremiumServiceImpl
     }
 
     @Override
-    public List<PremiumResponse> getAllPremiums() {
+    public org.springframework.data.domain.Page<PremiumResponse> getAllPremiums(org.springframework.data.domain.Pageable pageable) {
 
         return premiumRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+        return premiumRepository
+                .findAll(pageable)
+                .map(this::toResponse);
     }
 
     @Override

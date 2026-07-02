@@ -26,4 +26,5 @@ public interface PremiumService {
 
     void deletePremium(Long premiumId);
 
+    org.springframework.data.domain.Page<PremiumResponse> getAllPremiums(org.springframework.data.domain.Pageable pageable);
 }
