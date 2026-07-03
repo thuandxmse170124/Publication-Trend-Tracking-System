@@ -294,6 +294,7 @@ public class SyncServiceImpl implements SyncService {
                 ParsedPaperDTO dto = new ParsedPaperDTO();
                 dto.title = work.path("title").asText(null);
                 if (dto.title == null || dto.title.isBlank()) continue;
+                if (dto.title.length() > 250) dto.title = dto.title.substring(0, 247) + "...";
                 String doiUrl = work.path("doi").asText(null);
                 dto.doi = doiUrl != null && doiUrl.startsWith("https://doi.org/") ? doiUrl.substring(16) : doiUrl;
                 dto.year = work.path("publication_year").asInt(LocalDateTime.now().getYear());
@@ -334,6 +335,7 @@ public class SyncServiceImpl implements SyncService {
                 ParsedPaperDTO dto = new ParsedPaperDTO();
                 dto.title = paperNode.path("title").asText(null);
                 if (dto.title == null || dto.title.isBlank()) continue;
+                if (dto.title.length() > 250) dto.title = dto.title.substring(0, 247) + "...";
                 dto.paperAbstract = paperNode.path("abstract").asText("");
                 dto.year = paperNode.path("year").asInt(LocalDateTime.now().getYear());
                 dto.citations = paperNode.path("citationCount").asInt(0);
