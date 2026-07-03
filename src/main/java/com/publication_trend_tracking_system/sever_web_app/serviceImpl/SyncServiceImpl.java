@@ -263,7 +263,7 @@ public class SyncServiceImpl implements SyncService {
     private String buildApiUrl(ApiSource source, String query, int page) throws Exception {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
         if ("OpenAlex".equalsIgnoreCase(source.getSourceName())) {
-            return source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=50&page=" + page;
+            return source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=200&page=" + page;
         } else if ("Semantic Scholar".equalsIgnoreCase(source.getSourceName())) {
             int offset = (page - 1) * 50;
             return source.getBaseUrl() + "/v1/paper/search?query=" + encodedQuery + "&limit=50&offset=" + offset + "&fields=title,abstract,authors,journal,year,externalIds,citationCount,fieldsOfStudy";
