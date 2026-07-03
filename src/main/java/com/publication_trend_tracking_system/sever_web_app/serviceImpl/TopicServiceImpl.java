@@ -29,14 +29,13 @@ public class TopicServiceImpl implements TopicService {
     @Override
     @Transactional(readOnly = true)
     public Page<TopicResponse> getAllTopics(Pageable pageable) {
-        Page<Topic> topics = topicRepository.findAll(pageable);
-        return topics.map(topic -> {
-            long paperCount = topicRepository.countPapersByTopicId(topic.getTopicId());
+        Page<Object[]> topics = topicRepository.findAllTopicsWithPaperCount(pageable);
+        return topics.map(obj -> {
             return TopicResponse.builder()
-                    .topicId(topic.getTopicId())
-                    .topicName(topic.getTopicName())
-                    .description(topic.getDescription())
-                    .paperCount(paperCount)
+                    .topicId((Integer) obj[0])
+                    .topicName((String) obj[1])
+                    .description((String) obj[2])
+                    .paperCount(((Number) obj[3]).longValue())
                     .latestPapers(null)
                     .build();
         });
@@ -71,7 +70,7 @@ public class TopicServiceImpl implements TopicService {
             Integer topicId = (Integer) obj[0];
             String topicName = (String) obj[1];
             String description = (String) obj[2];
-            long paperCount = topicRepository.countPapersByTopicId(topicId);
+            long paperCount = ((Number) obj[4]).longValue();
             return TopicResponse.builder()
                     .topicId(topicId)
                     .topicName(topicName)

@@ -18,17 +18,20 @@ public class AdminController {
     private final AdminUserService adminUserService;
 
     @GetMapping("/users")
-    public ApiResponse<List<UserResponse>>
-    getAllUsers() {
-
+    public ApiResponse<org.springframework.data.domain.Page<UserResponse>>
+    getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
         return ApiResponse
-                .<List<UserResponse>>builder()
+                .<org.springframework.data.domain.Page<UserResponse>>builder()
                 .code(1000)
                 .message(
                         "Get Users Success")
                 .result(
                         adminUserService
-                                .getAllUsers())
+                                .getAllUsers(pageable))
                 .build();
     }
 
