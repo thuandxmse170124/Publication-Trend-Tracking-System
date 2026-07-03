@@ -161,7 +161,7 @@ public class SyncServiceImpl implements SyncService {
             for (String query : queries) {
                 log.info("Starting sync from {} for query: {}", source.getSourceName(), query);
                 // Pagination loop: Fetch 4 pages per query (4 * 50 = 200 papers per topic)
-                for (int page = 1; page <= 4; page++) {
+                for (int page = 1; page <= 1; page++) {
                     try {
                         String url = buildApiUrl(source, query, page);
                         String responseBody = fetchFromApi(url);
