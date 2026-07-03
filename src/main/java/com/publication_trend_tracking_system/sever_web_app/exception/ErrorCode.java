@@ -248,6 +248,11 @@ public enum ErrorCode {
             "Author not found",
             HttpStatus.NOT_FOUND),
 
+    PENDING_INVOICE_EXISTS(
+            1060,
+            "You have a pending invoice",
+            HttpStatus.BAD_REQUEST
+    ),
     JOURNAL_NOT_FOUND(
             1801,
             "Journal not found",
@@ -296,6 +301,22 @@ public enum ErrorCode {
             2002,
             "Sync job not found",
             HttpStatus.NOT_FOUND),
+    PREMIUM_ALREADY_USED(
+            3018,
+            "Premium package has already been used",
+            HttpStatus.BAD_REQUEST
+    ),
+    PREMIUM_ALREADY_EXISTS(
+            3018,
+            "Premium existis",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    PREMIUM_INACTIVE(
+            3015,
+            "Premium package is inactive",
+            HttpStatus.BAD_REQUEST
+    ),
 
     API_SOURCE_INACTIVE(
             2003,

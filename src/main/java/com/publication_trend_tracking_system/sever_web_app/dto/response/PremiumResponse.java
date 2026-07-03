@@ -3,6 +3,7 @@ package com.publication_trend_tracking_system.sever_web_app.dto.response;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -20,4 +21,11 @@ public class PremiumResponse {
     private Integer durationDays;
 
     private String description;
+
+    private Boolean isActive;
+
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+    
 }

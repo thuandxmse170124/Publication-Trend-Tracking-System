@@ -4,6 +4,7 @@ import com.publication_trend_tracking_system.sever_web_app.entity.Invoice;
 import com.publication_trend_tracking_system.sever_web_app.entity.PaymentTransaction;
 import com.publication_trend_tracking_system.sever_web_app.entity.Premium;
 import com.publication_trend_tracking_system.sever_web_app.entity.UserSubscription;
+import com.publication_trend_tracking_system.sever_web_app.enums.InvoiceStatus;
 import com.publication_trend_tracking_system.sever_web_app.repository.InvoiceRepository;
 import com.publication_trend_tracking_system.sever_web_app.repository.PaymentTransactionRepository;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserSubscriptionRepository;
@@ -18,6 +19,7 @@ import vn.payos.model.webhooks.WebhookData;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -28,9 +30,6 @@ public class PaymentWebhookServiceImpl
     private final PayOS payOS;
 
     private final InvoiceRepository invoiceRepository;
-
-    private final PaymentTransactionRepository paymentTransactionRepository;
-
     private final UserSubscriptionRepository userSubscriptionRepository;
 
     @Value("${payos.bypass-signature-check:false}")
@@ -41,6 +40,7 @@ public class PaymentWebhookServiceImpl
     public void handleWebhook(
             Map<String, Object> body
     ) {
+        log.info("===== WEBHOOK RECEIVED =====");
         log.info("Processing PayOS Webhook payload: {}", body);
 
         Long orderCode = null;
@@ -69,60 +69,107 @@ public class PaymentWebhookServiceImpl
         final Long finalOrderCode = orderCode;
         Invoice invoice =
                 invoiceRepository
-                        .findById(finalOrderCode)
+                        .findByOrderCode(finalOrderCode)
                         .orElseThrow(() -> {
-                            log.error("Invoice not found for orderCode (invoiceId): {}", finalOrderCode);
-                            return new java.util.NoSuchElementException("Invoice not found for ID: " + finalOrderCode);
+
+                            log.error(
+                                    "Invoice not found with orderCode {}",
+                                    finalOrderCode
+                            );
+
+                            return new NoSuchElementException(
+                                    "Invoice not found"
+                            );
+
                         });
 
-        if ("PAID".equals(invoice.getStatus())) {
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
             log.info("Invoice {} is already PAID. Returning early.", orderCode);
             return;
         }
 
-        invoice.setStatus("PAID");
+        invoice.setStatus(InvoiceStatus.PAID);
+
+        invoice.setPaidAt(
+                LocalDateTime.now()
+        );
 
         invoiceRepository.save(invoice);
-        log.info("Updated Invoice status to PAID for invoice ID: {}", orderCode);
+        log.info("Updated Invoice status to PAID for invoice ID: {}", invoice.getInvoiceId());
 
-        PaymentTransaction transaction =
-                PaymentTransaction.builder()
-                        .invoice(invoice)
-                        .amountPaid(invoice.getFinalAmount())
-                        .paymentMethod("PAYOS")
-                        .transactionStatus("SUCCESS")
-                        .transactionDate(LocalDateTime.now())
-                        .build();
 
-        paymentTransactionRepository.save(transaction);
-        log.info("Saved PaymentTransaction for invoice ID: {}", orderCode);
-
-        Premium premium =
-                invoice.getPremium();
-        if (premium != null) {
-            premium.setIsActive(true);
-            log.info("Set Premium package {} status to active", premium.getPackageName());
-        }
+        Premium premium = invoice.getPremium();
 
         UserSubscription subscription =
-                UserSubscription.builder()
-                        .user(invoice.getUser())
-                        .premium(premium)
-                        .startDate(LocalDateTime.now())
-                        .endDate(
-                                LocalDateTime.now()
-                                        .plusDays(
-                                                premium != null ? premium.getDurationDays() : 30
-                                        )
+                userSubscriptionRepository
+                        .findFirstByUser_UserIdAndStatusOrderByEndDateDesc(
+                                invoice.getUser().getUserId(),
+                                "ACTIVE"
                         )
-                        .status("ACTIVE")
-                        .createdAt(LocalDateTime.now())
-                        .build();
+                        .orElse(null);
+
+        if (subscription == null) {
+
+            subscription =
+                    UserSubscription.builder()
+                            .user(invoice.getUser())
+                            .premium(premium)
+                            .startDate(LocalDateTime.now())
+                            .endDate(
+                                    LocalDateTime.now()
+                                            .plusDays(
+                                                    invoice.getDurationDays()
+                                            )
+                            )
+                            .status("ACTIVE")
+                            .createdAt(LocalDateTime.now())
+                            .build();
+
+            log.info("Create new Premium Subscription");
+
+        } else {
+            subscription.setPremium(premium);
+
+            if (subscription.getEndDate().isAfter(LocalDateTime.now())) {
+
+                subscription.setEndDate(
+                        subscription.getEndDate()
+                                .plusDays(
+                                        invoice.getDurationDays()
+                                )
+                );
+
+
+                log.info("Extend Premium Subscription");
+
+            } else {
+
+
+                subscription.setStartDate(
+                        LocalDateTime.now()
+                );
+
+                subscription.setEndDate(
+                        LocalDateTime.now()
+                                .plusDays(
+                                        invoice.getDurationDays()
+                                )
+                );
+
+                subscription.setPremium(premium);
+                subscription.setStatus("ACTIVE");
+
+                log.info("Restart Premium Subscription");
+            }
+        }
 
         userSubscriptionRepository.save(subscription);
-        log.info("Created and saved UserSubscription for user: {}, plan: {}",
-                invoice.getUser() != null ? invoice.getUser().getEmail() : "unknown",
-                premium != null ? premium.getPackageName() : "unknown");
+
+        log.info(
+                "Saved UserSubscription for user: {}, package: {}",
+                invoice.getUser().getEmail(),
+                premium.getPackageName()
+        );
 
     }
 

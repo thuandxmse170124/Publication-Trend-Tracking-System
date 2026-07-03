@@ -100,7 +100,7 @@ public class DiscountController {
                 .message("Delete Discount Success")
                 .build();
     }
-    @DeleteMapping("/{discountId}/premiums/{premiumId}")
+    @DeleteMapping("/premiums/{premiumId}")
     public ApiResponse<Void> removeDiscountFromPremium(
 
             @PathVariable Long discountId,
@@ -109,8 +109,7 @@ public class DiscountController {
     ) {
 
         adminDiscountService.removeDiscountFromPremium(
-                premiumId,
-                discountId
+                premiumId
         );
 
         return ApiResponse.<Void>builder()
