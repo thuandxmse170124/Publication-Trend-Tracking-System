@@ -42,7 +42,6 @@ public class AdminDiscountServiceImpl
                         .build();
 
         discount = discountRepository.save(discount);
-
         return mapToResponse(discount);
     }
 
