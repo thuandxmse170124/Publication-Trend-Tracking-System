@@ -1,6 +1,7 @@
 package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.request.CreateReportRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.UpdateReportRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.ReportTicketResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.Paper;
 import com.publication_trend_tracking_system.sever_web_app.entity.ReportTicket;
@@ -119,5 +120,27 @@ public class ReportServiceImpl
                                         report.getCreatedAt())
                                 .build())
                 .toList();
+    }
+
+    @Override
+    public void updateReport(
+            Long reportId,
+            UpdateReportRequest request) {
+
+        ReportTicket report =
+                reportTicketRepository
+                        .findById(reportId)
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.REPORT_NOT_FOUND));
+
+        report.setStatus(
+                request.getStatus());
+
+        report.setAdminResponse(
+                request.getAdminResponse());
+
+        reportTicketRepository.save(
+                report);
     }
 }

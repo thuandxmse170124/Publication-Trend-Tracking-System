@@ -14,6 +14,12 @@ import java.time.LocalDateTime;
 @Builder
 public class ReportTicket {
 
+    public enum ReportStatus {
+        PENDING,
+        RESOLVED,
+        REJECTED
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "report_id")
@@ -30,11 +36,19 @@ public class ReportTicket {
     @Column(name = "reason", nullable = false)
     private String reason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private ReportStatus status;
+
+    @Column(name = "admin_response")
+    private String adminResponse;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();
+        status = ReportStatus.PENDING;
     }
 }
