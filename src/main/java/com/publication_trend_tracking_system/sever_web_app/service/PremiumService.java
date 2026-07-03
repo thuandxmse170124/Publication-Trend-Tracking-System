@@ -8,7 +8,6 @@ import java.util.List;
 
 public interface PremiumService {
 
-    org.springframework.data.domain.Page<PremiumResponse> getAllPremiums(org.springframework.data.domain.Pageable pageable);
     PremiumResponse createPremium(CreatePremiumRequest request);
 
     List<PremiumResponse> getAllPremiums();
@@ -26,5 +25,4 @@ public interface PremiumService {
     );
 
     void deletePremium(Long premiumId);
-
 }
