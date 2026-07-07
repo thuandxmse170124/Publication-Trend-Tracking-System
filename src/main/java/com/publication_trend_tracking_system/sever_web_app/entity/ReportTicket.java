@@ -49,6 +49,9 @@ public class ReportTicket {
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();
-        status = ReportStatus.PENDING;
+
+        if (status == null) {
+            status = ReportStatus.PENDING;
+        }
     }
 }
