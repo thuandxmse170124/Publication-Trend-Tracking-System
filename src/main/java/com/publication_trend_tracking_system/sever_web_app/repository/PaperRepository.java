@@ -62,8 +62,8 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @org.springframework.data.repository.query.Param("topicId") Integer topicId
     );
 
-    @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
-    java.util.List<Object[]> findDistinctYearsWithCount();
+    @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL AND CAST(p.publication_year AS VARCHAR) LIKE :search GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
+    java.util.List<Object[]> findDistinctYearsWithCount(@org.springframework.data.repository.query.Param("search") String search);
 
     @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.TopKeywordResponse(k.keywordName, COUNT(p.paperId)) " +
            "FROM Paper p JOIN p.keywords k " +

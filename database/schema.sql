@@ -217,6 +217,7 @@ GO
 CREATE TABLE keywords (
     keyword_id   INT          NOT NULL IDENTITY(1,1),
     keyword_name VARCHAR(200) NOT NULL UNIQUE,
+    trend_score  FLOAT        DEFAULT 0.0,
     PRIMARY KEY (keyword_id)
 );
 GO
@@ -228,6 +229,7 @@ CREATE TABLE topics (
     topic_id    INT          NOT NULL IDENTITY(1,1),
     topic_name  VARCHAR(200) NOT NULL UNIQUE,
     description VARCHAR(MAX),
+    trend_score FLOAT        DEFAULT 0.0,
     PRIMARY KEY (topic_id)
 );
 GO

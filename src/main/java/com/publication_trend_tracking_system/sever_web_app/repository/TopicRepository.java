@@ -54,7 +54,8 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
 
     @Query(value = "SELECT TOP 50 t.topic_id, t.topic_name, SUM(ISNULL(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1), 0)) AS TrendScore " +
                    "FROM topics t LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id LEFT JOIN papers p ON pt.paper_id = p.paper_id " +
+                   "WHERE t.topic_name LIKE :search " +
                    "GROUP BY t.topic_id, t.topic_name " +
                    "ORDER BY TrendScore DESC", nativeQuery = true)
-    java.util.List<Object[]> findTop50TopicsWithCount();
+    java.util.List<Object[]> findTop50TopicsWithCount(@Param("search") String search);
 }

@@ -286,8 +286,9 @@ public class PaperServiceImpl implements PaperService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterKeywords() {
-        return keywordRepository.findTop50KeywordNamesWithCount().stream()
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterKeywords(String search) {
+        String searchParam = (search == null || search.trim().isEmpty()) ? "%" : "%" + search.trim() + "%";
+        return keywordRepository.findTop50KeywordNamesWithCount(searchParam).stream()
                 .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
                         .label((String) obj[0])
                         .value((String) obj[0])
@@ -298,8 +299,9 @@ public class PaperServiceImpl implements PaperService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterJournals() {
-        return journalRepository.findTop50JournalNamesWithCount().stream()
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterJournals(String search) {
+        String searchParam = (search == null || search.trim().isEmpty()) ? "%" : "%" + search.trim() + "%";
+        return journalRepository.findTop50JournalNamesWithCount(searchParam).stream()
                 .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
                         .label((String) obj[0])
                         .value((String) obj[0])
@@ -310,8 +312,9 @@ public class PaperServiceImpl implements PaperService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterYears() {
-        return paperRepository.findDistinctYearsWithCount().stream()
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterYears(String search) {
+        String searchParam = (search == null || search.trim().isEmpty()) ? "%" : "%" + search.trim() + "%";
+        return paperRepository.findDistinctYearsWithCount(searchParam).stream()
                 .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
                         .label(String.valueOf(obj[0]))
                         .value(String.valueOf(obj[0]))
@@ -322,8 +325,9 @@ public class PaperServiceImpl implements PaperService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterTopics() {
-        return topicRepository.findTop50TopicsWithCount().stream()
+    public List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse> getFilterTopics(String search) {
+        String searchParam = (search == null || search.trim().isEmpty()) ? "%" : "%" + search.trim() + "%";
+        return topicRepository.findTop50TopicsWithCount(searchParam).stream()
                 .map(obj -> com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse.builder()
                         .label((String) obj[1])
                         .value(String.valueOf(obj[0]))

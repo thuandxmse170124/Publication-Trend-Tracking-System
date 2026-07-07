@@ -19,4 +19,7 @@ public class Keyword {
 
     @Column(name = "keyword_name", nullable = false, unique = true)
     private String keywordName;
+
+    @Column(name = "trend_score", columnDefinition = "FLOAT DEFAULT 0.0")
+    private Float trendScore;
 }

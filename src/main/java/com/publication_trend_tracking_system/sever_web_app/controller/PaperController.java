@@ -96,38 +96,38 @@ public class PaperController {
     }
 
     @GetMapping("/filters/keywords")
-    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterKeywords() {
+    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterKeywords(@org.springframework.web.bind.annotation.RequestParam(required = false) String search) {
         return ApiResponse.<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>>builder()
                 .code(1000)
                 .message("Get filter keywords success")
-                .result(paperService.getFilterKeywords())
+                .result(paperService.getFilterKeywords(search))
                 .build();
     }
 
     @GetMapping("/filters/journals")
-    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterJournals() {
+    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterJournals(@org.springframework.web.bind.annotation.RequestParam(required = false) String search) {
         return ApiResponse.<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>>builder()
                 .code(1000)
                 .message("Get filter journals success")
-                .result(paperService.getFilterJournals())
+                .result(paperService.getFilterJournals(search))
                 .build();
     }
 
     @GetMapping("/filters/years")
-    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterYears() {
+    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterYears(@org.springframework.web.bind.annotation.RequestParam(required = false) String search) {
         return ApiResponse.<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>>builder()
                 .code(1000)
                 .message("Get filter years success")
-                .result(paperService.getFilterYears())
+                .result(paperService.getFilterYears(search))
                 .build();
     }
 
     @GetMapping("/filters/topics")
-    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterTopics() {
+    public ApiResponse<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>> getFilterTopics(@org.springframework.web.bind.annotation.RequestParam(required = false) String search) {
         return ApiResponse.<java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.FilterSuggestionResponse>>builder()
                 .code(1000)
                 .message("Get filter topics success")
-                .result(paperService.getFilterTopics())
+                .result(paperService.getFilterTopics(search))
                 .build();
     }
 }
