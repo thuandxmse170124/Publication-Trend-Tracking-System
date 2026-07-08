@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PaperRepository extends JpaRepository<Paper, Long> {
 
@@ -127,4 +128,6 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
                    "WHERE pt.topic_id = :topicId AND p.paper_id != :paperId " +
                    "ORDER BY (CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1)) DESC", nativeQuery = true)
     List<Paper> findRelatedPapers(@Param("paperId") Long paperId, @Param("topicId") Integer topicId);
+
+    Optional<Paper> findByOpenAlexId(String openAlexId);
 }
