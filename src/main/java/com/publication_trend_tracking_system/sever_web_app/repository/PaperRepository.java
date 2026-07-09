@@ -12,6 +12,8 @@ import java.util.List;
 public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     boolean existsByDoi(String doi);
+    long countByTopics_TopicId(
+            Integer topicId);
 
     java.util.Optional<Paper> findFirstByDoiIgnoreCase(String doi);
 
