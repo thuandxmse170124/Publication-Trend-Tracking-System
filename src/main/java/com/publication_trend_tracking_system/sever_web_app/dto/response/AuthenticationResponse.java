@@ -13,5 +13,5 @@ public class AuthenticationResponse {
 
     private String role;
 
-    private boolean premium;
+    private boolean isPremium;
 }

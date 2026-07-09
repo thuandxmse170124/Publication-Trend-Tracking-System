@@ -22,6 +22,11 @@ public class JournalServiceImpl implements JournalService {
         return toResponse(journal);
     }
 
+    @Override
+    public org.springframework.data.domain.Page<JournalResponse> getAllJournals(org.springframework.data.domain.Pageable pageable) {
+        return journalRepository.findAll(pageable).map(this::toResponse);
+    }
+
     private JournalResponse toResponse(Journal journal) {
         return JournalResponse.builder()
                 .journalId(journal.getJournalId())

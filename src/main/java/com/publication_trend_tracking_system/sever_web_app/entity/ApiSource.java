@@ -28,4 +28,7 @@ public class ApiSource {
 
     @Column(name = "status", nullable = false)
     private String status;
+
+    @Column(name = "last_synced_at")
+    private java.time.LocalDateTime lastSyncedAt;
 }
