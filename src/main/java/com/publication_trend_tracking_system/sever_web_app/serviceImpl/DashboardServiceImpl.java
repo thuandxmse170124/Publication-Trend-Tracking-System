@@ -104,7 +104,7 @@ public class DashboardServiceImpl implements DashboardService {
                         .orElseThrow(() ->
                                 new AppException(
                                         ErrorCode.USER_NOT_FOUND));
-        //validatePremium(user);
+        validatePremium(user);
 
 
 
