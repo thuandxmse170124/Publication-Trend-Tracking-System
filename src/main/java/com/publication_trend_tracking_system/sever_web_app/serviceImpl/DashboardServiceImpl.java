@@ -12,6 +12,7 @@ import com.publication_trend_tracking_system.sever_web_app.repository.TopicRepos
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.DashboardService;
 import com.publication_trend_tracking_system.sever_web_app.entity.FollowTopic;
+import com.publication_trend_tracking_system.sever_web_app.service.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final TopicRepository topicRepository;
     private final UserRepository userRepository;
     private final FollowTopicRepository followTopicRepository;
+    private final UserSubscriptionService userSubscriptionService;
 
     @Override
     @Transactional(readOnly = true)
@@ -102,6 +104,7 @@ public class DashboardServiceImpl implements DashboardService {
                         .orElseThrow(() ->
                                 new AppException(
                                         ErrorCode.USER_NOT_FOUND));
+        validatePremium(user);
 
         return followTopicRepository
                 .findByUserUserId(
@@ -154,6 +157,7 @@ public class DashboardServiceImpl implements DashboardService {
                         .orElseThrow(() ->
                                 new AppException(
                                         ErrorCode.USER_NOT_FOUND));
+        validatePremium(user);
 
         List<FollowTopic> follows =
                 followTopicRepository
@@ -214,5 +218,13 @@ public class DashboardServiceImpl implements DashboardService {
                 .recentPapers(
                         recentPapers)
                 .build();
+    }
+
+    private void validatePremium(User user) {
+
+        if (!userSubscriptionService.isPremium(user.getUserId())) {
+            throw new AppException(
+                    ErrorCode.PREMIUM_REQUIRED);
+        }
     }
 }
