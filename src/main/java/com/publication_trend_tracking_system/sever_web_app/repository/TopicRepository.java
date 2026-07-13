@@ -25,7 +25,7 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
     @Query(value = "SELECT t.topic_id as topicId, t.topic_name as topicName, t.description as description, COUNT(pt.paper_id) as paperCount " +
                    "FROM topics t " +
                    "LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id " +
-                   "GROUP BY t.topic_id, t.topic_name, t.description",
+                   "GROUP BY t.topic_id, t.topic_name, t.description, t.trend_score",
            countQuery = "SELECT COUNT(topic_id) FROM topics",
            nativeQuery = true)
     org.springframework.data.domain.Page<Object[]> findAllTopicsWithPaperCount(org.springframework.data.domain.Pageable pageable);
@@ -40,7 +40,7 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
                    "LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id " +
 
                    "LEFT JOIN papers p ON pt.paper_id = p.paper_id " +
-                   "GROUP BY t.topic_id, t.topic_name, t.description " +
+                   "GROUP BY t.topic_id, t.topic_name, t.description, t.trend_score " +
                    "ORDER BY SUM(ISNULL(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1), 0)) DESC", nativeQuery = true)
     java.util.List<Topic> findTop5TrendingTopics();
 
@@ -48,7 +48,7 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
                    "LEFT JOIN paper_topics pt ON t.topic_id = pt.topic_id " +
                    "LEFT JOIN papers p ON pt.paper_id = p.paper_id " +
                    "WHERE p.field_id = :fieldId " +
-                   "GROUP BY t.topic_id, t.topic_name, t.description " +
+                   "GROUP BY t.topic_id, t.topic_name, t.description, t.trend_score " +
                    "ORDER BY SUM(ISNULL(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1), 0)) DESC", nativeQuery = true)
     java.util.List<Topic> findTop5PersonalizedTrendingTopics(@Param("fieldId") Integer fieldId);
 
