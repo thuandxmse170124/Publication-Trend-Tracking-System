@@ -1,7 +1,7 @@
 package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.*;
-
+import java.time.LocalDateTime;
 import com.publication_trend_tracking_system.sever_web_app.entity.Topic;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
@@ -104,7 +104,9 @@ public class DashboardServiceImpl implements DashboardService {
                         .orElseThrow(() ->
                                 new AppException(
                                         ErrorCode.USER_NOT_FOUND));
-        validatePremium(user);
+        //validatePremium(user);
+
+
 
         return followTopicRepository
                 .findByUserUserId(
@@ -116,26 +118,69 @@ public class DashboardServiceImpl implements DashboardService {
                             follow.getTopic()
                                     .getTopicId();
 
-                    long paperCount =
-                            paperRepository
-                                    .countByTopics_TopicId(
-                                            topicId);
+                    LocalDateTime now = LocalDateTime.now();
 
-                    String trend =
-                            paperCount >= 100
-                                    ? "RISING"
-                                    : "STABLE";
+                    LocalDateTime currentStart =
+                            now.minusDays(30);
+
+                    LocalDateTime previousStart =
+                            now.minusDays(60);
+
+                    long currentCount =
+                            paperRepository.countTopicPapersBetween(
+                                    topicId,
+                                    currentStart,
+                                    now);
+
+                    long previousCount =
+                            paperRepository.countTopicPapersBetween(
+                                    topicId,
+                                    previousStart,
+                                    currentStart);
+
+                    Double growthRate = null;
+
+                    long paperCount = currentCount;
+
+                    String trend;
+
+                    if (previousCount == 0) {
+
+                        if (currentCount == 0) {
+
+                            trend = "NO_DATA";
+
+                        } else {
+
+                            trend = "EMERGING";
+                        }
+
+                    } else {
+
+                        growthRate =
+                                ((double)(currentCount - previousCount)
+                                        / previousCount) * 100;
+
+                        if (growthRate >= 30) {
+                            trend = "RAPIDLY_RISING";
+                        } else if (growthRate >= 10) {
+                            trend = "RISING";
+                        } else if (growthRate <= -10) {
+                            trend = "DECLINING";
+                        } else {
+                            trend = "STABLE";
+                        }
+                    }
 
                     return TopicTrendResponse
                             .builder()
                             .topicId(topicId)
-                            .topicName(
-                                    follow.getTopic()
-                                            .getTopicName())
-                            .paperCount(
-                                    paperCount)
-                            .trend(
-                                    trend)
+                            .topicName(follow.getTopic().getTopicName())
+                            .paperCount(paperCount)
+                            .trend(trend)
+                            .previousPaperCount(previousCount)
+                            .currentPaperCount(currentCount)
+                            .growthRate(growthRate)
                             .build();
                 })
                 .toList();

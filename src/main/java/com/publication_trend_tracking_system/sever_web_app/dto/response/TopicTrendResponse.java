@@ -15,5 +15,11 @@ public class TopicTrendResponse {
 
     private Long paperCount;
 
+    private Long previousPaperCount;
+
+    private Long currentPaperCount;
+
+    private Double growthRate;
+
     private String trend;
 }
