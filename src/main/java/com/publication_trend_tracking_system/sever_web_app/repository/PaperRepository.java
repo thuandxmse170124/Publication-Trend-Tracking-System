@@ -7,11 +7,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     boolean existsByDoi(String doi);
+    long countByTopics_TopicId(
+            Integer topicId);
 
     java.util.Optional<Paper> findFirstByDoiIgnoreCase(String doi);
 
@@ -127,4 +130,17 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
                    "WHERE pt.topic_id = :topicId AND p.paper_id != :paperId " +
                    "ORDER BY (CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1)) DESC", nativeQuery = true)
     List<Paper> findRelatedPapers(@Param("paperId") Long paperId, @Param("topicId") Integer topicId);
+
+    @Query("""
+        SELECT COUNT(DISTINCT p)
+        FROM Paper p
+        JOIN p.topics t
+        WHERE t.topicId = :topicId
+          AND p.createdAt >= :start
+          AND p.createdAt < :end
+    """)
+        long countTopicPapersBetween(
+                @Param("topicId") Integer topicId,
+                @Param("start") LocalDateTime start,
+                @Param("end") LocalDateTime end);
 }

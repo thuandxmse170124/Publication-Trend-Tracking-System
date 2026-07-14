@@ -20,6 +20,14 @@ public class Keyword {
     @Column(name = "keyword_name", nullable = false, unique = true)
     private String keywordName;
 
-    @Column(name = "trend_score", columnDefinition = "FLOAT DEFAULT 0.0")
-    private Float trendScore;
+    @Builder.Default
+    @Column(name = "trend_score")
+    private Float trendScore = 0.0f;
+
+    @PrePersist
+    public void prePersist() {
+        if (trendScore == null) {
+            trendScore = 0.0f;
+        }
+    }
 }
