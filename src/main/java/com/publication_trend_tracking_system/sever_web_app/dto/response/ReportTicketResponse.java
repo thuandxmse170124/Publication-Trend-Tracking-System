@@ -1,5 +1,6 @@
 package com.publication_trend_tracking_system.sever_web_app.dto.response;
 
+import com.publication_trend_tracking_system.sever_web_app.entity.ReportTicket;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -20,4 +21,8 @@ public class ReportTicketResponse {
     private String reason;
 
     private LocalDateTime createdAt;
+
+    private ReportTicket.ReportStatus status;
+
+    private String adminResponse;
 }
