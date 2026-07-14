@@ -35,6 +35,23 @@ import java.util.*;
 @Slf4j
 public class SyncServiceImpl implements SyncService {
 
+    public static class SyncStats {
+        public int addedCount = 0;
+        public int updatedCount = 0;
+    }
+
+    public static class ParsedPaperDTO {
+        public String title;
+        public String paperAbstract;
+        public Integer year;
+        public String doi;
+        public String sourceUrl;
+        public Integer citations;
+        public String journalName;
+        public Set<String> authorNames = new HashSet<>();
+        public Set<String> topicNames = new HashSet<>();
+    }
+
     private final SyncJobRepository syncJobRepository;
     private final ApiSourceRepository apiSourceRepository;
     private final UserRepository userRepository;
@@ -43,11 +60,23 @@ public class SyncServiceImpl implements SyncService {
     private final AuthorRepository authorRepository;
     private final KeywordRepository keywordRepository;
     private final TopicRepository topicRepository;
+    private final ResearchFieldRepository researchFieldRepository;
     private final org.springframework.context.ApplicationContext applicationContext;
     private final NotificationService
             notificationService;
 
-    public RestTemplate restTemplate = new RestTemplate();
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
+    public RestTemplate restTemplate = new org.springframework.boot.web.client.RestTemplateBuilder()
+            .setConnectTimeout(java.time.Duration.ofSeconds(5))
+            .setReadTimeout(java.time.Duration.ofSeconds(30))
+            .build();
+
+    @Override
+    public SyncJobResponse syncAll(Integer sourceId, Long userId) {
+        return syncFromSource(sourceId, userId, null);
+    }
 
     @Override
     public SyncJobResponse syncFromSource(Integer sourceId, Long userId, String customQuery) {
@@ -73,24 +102,59 @@ public class SyncServiceImpl implements SyncService {
                 .build());
 
         try {
+            // Self-invocation to trigger @Async method
+            applicationContext.getBean(SyncService.class).executeSyncJob(job.getSyncJobId(), sourceId, customQuery);
+        } catch (org.springframework.core.task.TaskRejectedException ex) {
+            job.setStatus("FAILED");
+            job.setErrorMessage("Server is too busy. Sync queue is full.");
+            job.setFinishedAt(LocalDateTime.now());
+            syncJobRepository.save(job);
+            // Throw a runtime exception that GlobalExceptionHandler can catch, or a custom one
+            throw new RuntimeException("Server is too busy. Sync queue is full. Please try again later.");
+        } catch (Exception ex) {
+            job.setStatus("FAILED");
+            job.setErrorMessage("Failed to submit sync job: " + ex.getMessage());
+            job.setFinishedAt(LocalDateTime.now());
+            syncJobRepository.save(job);
+            throw new RuntimeException("Failed to submit sync job.", ex);
+        }
+
+        return toResponse(job);
+    }
+
+    @Override
+    @org.springframework.scheduling.annotation.Async
+    public void executeSyncJob(Long jobId, Integer sourceId, String customQuery) {
+        SyncJob job = syncJobRepository.findById(jobId).orElse(null);
+        if (job == null) return;
+
+        ApiSource source = apiSourceRepository.findById(sourceId).orElse(null);
+        if (source == null) return;
+
+        try {
             // Determine search queries
-            List<String> queries = new ArrayList<>();
+            Set<String> queries = new LinkedHashSet<>();
             if (customQuery != null && !customQuery.trim().isEmpty()) {
                 queries.add(customQuery.trim());
             } else {
                 // By default, query using topics name and keyword names
-                List<Topic> activeTopics = topicRepository.findAll();
+                List<Topic> activeTopics = topicRepository.findTop5TrendingTopics();
                 for (Topic topic : activeTopics) {
                     queries.add(topic.getTopicName());
                 }
-                List<Keyword> activeKeywords = keywordRepository.findAll();
-                for (Keyword keyword : activeKeywords) {
-                    queries.add(keyword.getKeywordName());
+                List<Object[]> topKeywords = keywordRepository.findTop50TrendingKeywordNamesWithCount();
+                for (Object[] row : topKeywords) {
+                    if (row.length > 0 && row[0] instanceof String) {
+                        queries.add((String) row[0]);
+                    }
                 }
 
-                // Default fallback
+                // Default fallback with massive seed list for preload
                 if (queries.isEmpty()) {
-                    queries.addAll(List.of("Artificial Intelligence", "Machine Learning", "Data Science"));
+                    queries.addAll(List.of("Artificial Intelligence", "Machine Learning", "Data Science", "Computer Science", 
+                            "Environmental Science", "Economics", "Medicine", "Biology", "Physics", "Chemistry",
+                            "Mathematics", "Psychology", "Sociology", "Business", "Engineering", "Materials Science",
+                            "History", "Political Science", "Philosophy", "Art"));
                 }
             }
 
@@ -150,8 +214,6 @@ public class SyncServiceImpl implements SyncService {
             job.setFinishedAt(LocalDateTime.now());
             syncJobRepository.save(job);
         }
-
-        return toResponse(job);
     }
 
     @Override
@@ -175,11 +237,15 @@ public class SyncServiceImpl implements SyncService {
     public void saveResultsInTransaction(String responseBody, ApiSource source, String searchQuery, int[] counts, List<Paper> newPapers) {
         try {
             // Find keyword entity or create it
-            Keyword searchKeyword = keywordRepository.findByKeywordNameIgnoreCase(searchQuery)
+            Keyword searchKeyword = keywordRepository.findFirstByKeywordNameIgnoreCase(searchQuery)
                     .orElseGet(() -> keywordRepository.save(Keyword.builder().keywordName(searchQuery).build()));
 
             // Find topic entity if matches
-            Topic topic = topicRepository.findByTopicNameIgnoreCase(searchQuery).orElse(null);
+            Topic topic = topicRepository.findFirstByTopicNameIgnoreCase(searchQuery).orElse(null);
+
+            // Find or create ResearchField
+            ResearchField researchField = researchFieldRepository.findFirstByFieldNameIgnoreCase(searchQuery)
+                    .orElseGet(() -> researchFieldRepository.save(ResearchField.builder().fieldName(searchQuery).build()));
 
             if ("OpenAlex".equalsIgnoreCase(source.getSourceName())) {
                 parseAndSaveOpenAlex(
@@ -198,18 +264,23 @@ public class SyncServiceImpl implements SyncService {
                         counts,
                         newPapers);
             }
+
+            // Flush and clear L1 cache to prevent OOM during massive syncs
+            entityManager.flush();
+            entityManager.clear();
         } catch (Exception e) {
             log.error("Error saving data in transactional helper", e);
             throw new RuntimeException("DB transaction error during sync: " + e.getMessage(), e);
         }
     }
 
-    private String buildApiUrl(ApiSource source, String query) throws Exception {
+    private String buildApiUrl(ApiSource source, String query, int page) throws Exception {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
         if ("OpenAlex".equalsIgnoreCase(source.getSourceName())) {
-            return source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=50";
+            return source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=200&page=" + page;
         } else if ("Semantic Scholar".equalsIgnoreCase(source.getSourceName())) {
-            return source.getBaseUrl() + "/v1/paper/search?query=" + encodedQuery + "&limit=50&fields=title,abstract,authors,journal,year,externalIds,citationCount";
+            int offset = (page - 1) * 50;
+            return source.getBaseUrl() + "/v1/paper/search?query=" + encodedQuery + "&limit=50&offset=" + offset + "&fields=title,abstract,authors,journal,year,externalIds,citationCount,fieldsOfStudy";
         }
         throw new IllegalArgumentException("Unsupported source name: " + source.getSourceName());
     }
@@ -238,42 +309,40 @@ public class SyncServiceImpl implements SyncService {
         JsonNode root = mapper.readTree(jsonResponse);
         JsonNode results = root.path("results");
         if (results.isArray()) {
+            List<ParsedPaperDTO> parsedPapers = new ArrayList<>();
             for (JsonNode work : results) {
-                String title = work.path("title").asText(null);
-                if (title == null || title.isBlank()) continue;
-
+                ParsedPaperDTO dto = new ParsedPaperDTO();
+                dto.title = work.path("title").asText(null);
+                if (dto.title == null || dto.title.isBlank()) continue;
+                if (dto.title.length() > 250) dto.title = dto.title.substring(0, 247) + "...";
                 String doiUrl = work.path("doi").asText(null);
-                String doi = doiUrl;
-                if (doi != null && doi.startsWith("https://doi.org/")) {
-                    doi = doi.substring("https://doi.org/".length());
-                }
-
-                Integer year = work.path("publication_year").asInt(LocalDateTime.now().getYear());
-                Integer citations = work.path("cited_by_count").asInt(0);
-
+                dto.doi = doiUrl != null && doiUrl.startsWith("https://doi.org/") ? doiUrl.substring(16) : doiUrl;
+                dto.year = work.path("publication_year").asInt(LocalDateTime.now().getYear());
+                dto.citations = work.path("cited_by_count").asInt(0);
                 JsonNode abstractNode = work.path("abstract_inverted_index");
-                String paperAbstract = "";
-                if (!abstractNode.isMissingNode() && abstractNode.isObject()) {
-                    paperAbstract = reconstructAbstractFromJson(abstractNode);
-                }
-
-                String sourceUrl = work.path("id").asText("");
-
-                String journalName = work.path("primary_location").path("source").path("display_name").asText(null);
-
-                Set<String> authorNames = new HashSet<>();
+                dto.paperAbstract = (!abstractNode.isMissingNode() && abstractNode.isObject()) ? reconstructAbstractFromJson(abstractNode) : "";
+                dto.sourceUrl = work.path("id").asText("");
+                dto.journalName = work.path("primary_location").path("source").path("display_name").asText(null);
                 JsonNode authorships = work.path("authorships");
                 if (authorships.isArray()) {
                     for (JsonNode authorship : authorships) {
                         String authorName = authorship.path("author").path("display_name").asText(null);
-                        if (authorName != null && !authorName.isBlank()) {
-                            authorNames.add(authorName);
+                        if (authorName != null && !authorName.isBlank()) dto.authorNames.add(authorName.trim());
+                    }
+                }
+                JsonNode concepts = work.path("concepts");
+                if (concepts.isArray()) {
+                    for (JsonNode concept : concepts) {
+                        if (concept.path("level").asInt(99) <= 1) {
+                            String conceptName = concept.path("display_name").asText(null);
+                            if (conceptName != null && !conceptName.isBlank()) dto.topicNames.add(conceptName.trim());
                         }
                     }
                 }
 
                 saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, topic, searchKeyword, source, counts, newPapers);
             }
+            batchSavePapers(parsedPapers, source, topic, searchKeyword, researchField, stats);
         }
     }
 
@@ -288,36 +357,30 @@ public class SyncServiceImpl implements SyncService {
         JsonNode root = mapper.readTree(jsonResponse);
         JsonNode data = root.path("data");
         if (data.isArray()) {
+            List<ParsedPaperDTO> parsedPapers = new ArrayList<>();
             for (JsonNode paperNode : data) {
-                String title = paperNode.path("title").asText(null);
-                if (title == null || title.isBlank()) continue;
-
-                String paperAbstract = paperNode.path("abstract").asText("");
-                Integer year = paperNode.path("year").asInt(LocalDateTime.now().getYear());
-                Integer citations = paperNode.path("citationCount").asInt(0);
-
-                String doi = paperNode.path("externalIds").path("DOI").asText(null);
-                if (doi == null || doi.isBlank()) {
-                    doi = paperNode.path("externalIds").path("doi").asText(null);
-                }
-
-                String sourceUrl = "https://www.semanticscholar.org/paper/" + paperNode.path("paperId").asText("");
-
-                String journalName = paperNode.path("journal").path("name").asText(null);
-
-                Set<String> authorNames = new HashSet<>();
+                ParsedPaperDTO dto = new ParsedPaperDTO();
+                dto.title = paperNode.path("title").asText(null);
+                if (dto.title == null || dto.title.isBlank()) continue;
+                if (dto.title.length() > 250) dto.title = dto.title.substring(0, 247) + "...";
+                dto.paperAbstract = paperNode.path("abstract").asText("");
+                dto.year = paperNode.path("year").asInt(LocalDateTime.now().getYear());
+                dto.citations = paperNode.path("citationCount").asInt(0);
+                dto.doi = paperNode.path("externalIds").path("DOI").asText(null);
+                if (dto.doi == null || dto.doi.isBlank()) dto.doi = paperNode.path("externalIds").path("doi").asText(null);
+                dto.sourceUrl = "https://www.semanticscholar.org/paper/" + paperNode.path("paperId").asText("");
+                dto.journalName = paperNode.path("journal").path("name").asText(null);
                 JsonNode authorsNode = paperNode.path("authors");
                 if (authorsNode.isArray()) {
                     for (JsonNode author : authorsNode) {
                         String authorName = author.path("name").asText(null);
-                        if (authorName != null && !authorName.isBlank()) {
-                            authorNames.add(authorName);
-                        }
+                        if (authorName != null && !authorName.isBlank()) dto.authorNames.add(authorName.trim());
                     }
                 }
 
                 saveOrUpdatePaper(title, paperAbstract, year, doi, sourceUrl, citations, journalName, authorNames, topic, searchKeyword, source, counts, newPapers);
             }
+            batchSavePapers(parsedPapers, source, topic, searchKeyword, researchField, stats);
         }
     }
 
@@ -331,54 +394,118 @@ public class SyncServiceImpl implements SyncService {
             paper = paperRepository.findByTitleIgnoreCase(title.trim()).stream().findFirst().orElse(null);
         }
 
-        boolean isNew = (paper == null);
-        if (isNew) {
-            paper = new Paper();
-            paper.setDoi(doi != null && !doi.isBlank() ? doi.trim() : null);
-            paper.setTitle(title.trim());
-            paper.setPaperAbstract(paperAbstract);
-            paper.setPublicationYear(year);
-            paper.setSourceUrl(sourceUrl);
-            paper.setCitationCount(citations);
-            paper.setApiSource(source);
-            paper.setPublicationType(PaperPublicationType.JOURNAL_ARTICLE);
-            paper.setVisibilityStatus(PaperVisibilityStatus.VISIBLE);
-            counts[0]++; // addedCount
-        } else {
-            if (paperAbstract != null && !paperAbstract.isBlank()) {
-                paper.setPaperAbstract(paperAbstract);
+        Map<String, Paper> existingPapersByDoi = new HashMap<>();
+        if (!allDois.isEmpty()) {
+            for (Paper p : paperRepository.findAllByDoiInIgnoreCase(allDois)) {
+                if (p.getDoi() != null) existingPapersByDoi.put(p.getDoi().toLowerCase(), p);
             }
-            paper.setCitationCount(citations);
-            paper.setTitle(title.trim());
-            paper.setSourceUrl(sourceUrl);
-            counts[1]++; // updatedCount
+        }
+        Map<String, Paper> existingPapersByTitle = new HashMap<>();
+        for (Paper p : paperRepository.findAllByTitleInIgnoreCase(allTitles)) {
+            existingPapersByTitle.put(p.getTitle().toLowerCase(), p);
         }
 
-        if (journalName != null && !journalName.isBlank()) {
-            Journal journal = journalRepository.findByNameIgnoreCase(journalName.trim())
-                    .orElseGet(() -> journalRepository.save(Journal.builder().name(journalName.trim()).build()));
-            paper.setJournal(journal);
+        Map<String, Journal> existingJournalsMap = new HashMap<>();
+        if (!allJournals.isEmpty()) {
+            for (Journal j : journalRepository.findAllByNameInIgnoreCase(allJournals)) {
+                existingJournalsMap.put(j.getName().toLowerCase(), j);
+            }
         }
 
-        Set<Author> authors = new HashSet<>();
-        for (String authorName : authorNames) {
-            Author author = authorRepository.findByFullNameIgnoreCase(authorName.trim())
-                    .orElseGet(() -> authorRepository.save(Author.builder().fullName(authorName.trim()).build()));
-            authors.add(author);
+        Map<String, Author> existingAuthorsMap = new HashMap<>();
+        if (!allAuthors.isEmpty()) {
+            for (Author a : authorRepository.findAllByFullNameInIgnoreCase(allAuthors)) {
+                existingAuthorsMap.put(a.getFullName().toLowerCase(), a);
+            }
         }
-        paper.setAuthors(authors);
 
-        Set<Keyword> keywords = new HashSet<>(paper.getKeywords() != null ? paper.getKeywords() : new HashSet<>());
-        if (searchKeyword != null) {
-            keywords.add(searchKeyword);
+        Map<String, Topic> existingTopicsMap = new HashMap<>();
+        if (!allTopics.isEmpty()) {
+            for (Topic t : topicRepository.findAllByTopicNameInIgnoreCase(allTopics)) {
+                existingTopicsMap.put(t.getTopicName().toLowerCase(), t);
+            }
         }
-        paper.setKeywords(keywords);
 
-        Set<Topic> topics = new HashSet<>(paper.getTopics() != null ? paper.getTopics() : new HashSet<>());
-        if (topic != null) {
-            topics.add(topic);
+        List<Paper> papersToSave = new ArrayList<>();
+        List<Journal> journalsToSave = new ArrayList<>();
+        List<Author> authorsToSave = new ArrayList<>();
+        List<Topic> topicsToSave = new ArrayList<>();
+
+        for (ParsedPaperDTO dto : dtoList) {
+            Paper paper = null;
+            if (dto.doi != null && !dto.doi.isBlank() && existingPapersByDoi.containsKey(dto.doi.trim().toLowerCase())) {
+                paper = existingPapersByDoi.get(dto.doi.trim().toLowerCase());
+            } else if (existingPapersByTitle.containsKey(dto.title.trim().toLowerCase())) {
+                paper = existingPapersByTitle.get(dto.title.trim().toLowerCase());
+            }
+
+            boolean isNew = (paper == null);
+            if (isNew) {
+                paper = new Paper();
+                paper.setDoi(dto.doi != null && !dto.doi.isBlank() ? dto.doi.trim() : null);
+                paper.setTitle(dto.title.trim());
+                paper.setPaperAbstract(dto.paperAbstract);
+                paper.setPublicationYear(dto.year);
+                paper.setSourceUrl(dto.sourceUrl);
+                paper.setCitationCount(dto.citations);
+                paper.setApiSource(source);
+                paper.setPublicationType(PaperPublicationType.JOURNAL_ARTICLE);
+                paper.setVisibilityStatus(PaperVisibilityStatus.VISIBLE);
+                paper.setField(researchField);
+                
+                if (paper.getDoi() != null) existingPapersByDoi.put(paper.getDoi().toLowerCase(), paper);
+                existingPapersByTitle.put(paper.getTitle().toLowerCase(), paper);
+                stats.addedCount++;
+            } else {
+                if (dto.paperAbstract != null && !dto.paperAbstract.isBlank()) paper.setPaperAbstract(dto.paperAbstract);
+                paper.setCitationCount(dto.citations);
+                paper.setTitle(dto.title.trim());
+                paper.setSourceUrl(dto.sourceUrl);
+                stats.updatedCount++;
+            }
+
+            if (dto.journalName != null && !dto.journalName.isBlank()) {
+                String jName = dto.journalName.trim();
+                Journal journal = existingJournalsMap.get(jName.toLowerCase());
+                if (journal == null) {
+                    journal = Journal.builder().name(jName).build();
+                    journalsToSave.add(journal);
+                    existingJournalsMap.put(jName.toLowerCase(), journal);
+                }
+                paper.setJournal(journal);
+            }
+
+            Set<Author> paperAuthors = new HashSet<>();
+            for (String aName : dto.authorNames) {
+                Author author = existingAuthorsMap.get(aName.toLowerCase());
+                if (author == null) {
+                    author = Author.builder().fullName(aName).build();
+                    authorsToSave.add(author);
+                    existingAuthorsMap.put(aName.toLowerCase(), author);
+                }
+                paperAuthors.add(author);
+            }
+            paper.setAuthors(paperAuthors);
+
+            Set<Keyword> keywords = new HashSet<>(paper.getKeywords() != null ? paper.getKeywords() : new HashSet<>());
+            if (searchKeyword != null) keywords.add(searchKeyword);
+            paper.setKeywords(keywords);
+
+            Set<Topic> topicsSet = new HashSet<>(paper.getTopics() != null ? paper.getTopics() : new HashSet<>());
+            if (topic != null) topicsSet.add(topic);
+            for (String tName : dto.topicNames) {
+                Topic t = existingTopicsMap.get(tName.toLowerCase());
+                if (t == null) {
+                    t = Topic.builder().topicName(tName).build();
+                    topicsToSave.add(t);
+                    existingTopicsMap.put(tName.toLowerCase(), t);
+                }
+                topicsSet.add(t);
+            }
+            paper.setTopics(topicsSet);
+
+            papersToSave.add(paper);
         }
-        paper.setTopics(topics);
 
         //paperRepository.save(paper);
         Paper savedPaper =

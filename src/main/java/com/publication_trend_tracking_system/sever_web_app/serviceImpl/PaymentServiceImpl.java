@@ -3,6 +3,7 @@ package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.PaymentResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.Invoice;
+import com.publication_trend_tracking_system.sever_web_app.enums.InvoiceStatus;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.InvoiceRepository;
@@ -30,6 +31,7 @@ public class PaymentServiceImpl
     @Override
     public PaymentResponse createPayment(
             Long invoiceId
+
     ) {
 
         Invoice invoice =
@@ -40,11 +42,26 @@ public class PaymentServiceImpl
                                         ErrorCode.INVOICE_NOT_FOUND
                                 ));
 
-        if (!"PENDING".equals(invoice.getStatus())) {
+        if (invoice.getStatus() != InvoiceStatus.PENDING) {
 
             throw new AppException(
                     ErrorCode.INVALID_INVOICE_STATUS
             );
+        }
+
+        Long orderCode;
+
+        if (invoice.getOrderCode() == null) {
+
+            orderCode = System.currentTimeMillis();
+
+            invoice.setOrderCode(orderCode);
+
+            invoiceRepository.save(invoice);
+
+        } else {
+
+            orderCode = invoice.getOrderCode();
         }
 
         try {
@@ -52,8 +69,7 @@ public class PaymentServiceImpl
             PaymentLinkItem item =
                     PaymentLinkItem.builder()
                             .name(
-                                    invoice.getPremium()
-                                            .getPackageName()
+                                    invoice.getPackageName()
                             )
                             .price(
                                     invoice.getFinalAmount()
@@ -64,15 +80,12 @@ public class PaymentServiceImpl
 
             CreatePaymentLinkRequest request =
                     CreatePaymentLinkRequest.builder()
-                            .orderCode(
-                                    invoice.getInvoiceId()
-                            )
+                            .orderCode(orderCode)
                             .amount(
-                                    invoice.getFinalAmount()
-                                            .longValue()
+                                    invoice.getFinalAmount().longValue()
                             )
                             .description(
-                                    "Premium"
+                                    invoice.getPackageName()
                             )
                             .returnUrl(
                                     "http://localhost:3000/payment/success"
@@ -82,7 +95,6 @@ public class PaymentServiceImpl
                             )
                             .item(item)
                             .build();
-
             CreatePaymentLinkResponse response =
                     payOS.paymentRequests()
                             .create(request);

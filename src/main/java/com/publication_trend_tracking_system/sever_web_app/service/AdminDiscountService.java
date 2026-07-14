@@ -10,7 +10,7 @@ public interface AdminDiscountService {
             CreateDiscountRequest request
     );
 
-    List<DiscountResponse> getAllDiscounts();
+    org.springframework.data.domain.Page<DiscountResponse> getAllDiscounts(org.springframework.data.domain.Pageable pageable);
 
     void assignDiscount(
             Long premiumId,
@@ -26,7 +26,6 @@ public interface AdminDiscountService {
     );
 
     void removeDiscountFromPremium(
-            Long premiumId,
-            Long discountId
+            Long premiumId
     );
 }

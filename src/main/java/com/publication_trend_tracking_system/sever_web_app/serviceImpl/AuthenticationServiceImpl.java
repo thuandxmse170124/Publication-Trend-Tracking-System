@@ -199,7 +199,7 @@ public class AuthenticationServiceImpl
                 .builder()
                 .token(token)
                 .role(user.getRole().getRoleName())
-                .premium(premium)
+                .isPremium(premium)
                 .build();
     }
 

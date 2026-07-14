@@ -8,12 +8,13 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
     show-sql: false
 
     properties:
       hibernate:
         format_sql: true
+        default_batch_fetch_size: 50
 
   mail:
     host: smtp.gmail.com
@@ -24,4 +25,4 @@ server:
 
 app:
   sync:
-    cron: "0 0 * * * ?"
+    cron: "0 0 2 * * ?"

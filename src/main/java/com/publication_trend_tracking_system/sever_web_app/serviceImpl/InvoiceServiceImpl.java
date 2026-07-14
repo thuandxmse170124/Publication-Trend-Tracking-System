@@ -6,7 +6,9 @@ import com.publication_trend_tracking_system.sever_web_app.entity.Discount;
 import com.publication_trend_tracking_system.sever_web_app.entity.Invoice;
 import com.publication_trend_tracking_system.sever_web_app.entity.Premium;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
-import com.publication_trend_tracking_system.sever_web_app.repository.DiscountRepository;
+import com.publication_trend_tracking_system.sever_web_app.enums.InvoiceStatus;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.InvoiceRepository;
 import com.publication_trend_tracking_system.sever_web_app.repository.PremiumRepository;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
@@ -18,6 +20,8 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,11 +30,9 @@ public class InvoiceServiceImpl
 
     private final InvoiceRepository invoiceRepository;
 
-    private final UserRepository userRepository;
-
     private final PremiumRepository premiumRepository;
 
-    private final DiscountRepository discountRepository;
+    private final UserRepository userRepository;
 
     @Override
     public InvoiceResponse createInvoice(
@@ -46,38 +48,59 @@ public class InvoiceServiceImpl
         User user =
                 userRepository
                         .findByEmail(email)
-                        .orElseThrow();
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.USER_NOT_FOUND
+                                ));
+        Optional<Invoice> pendingInvoice =
+                invoiceRepository
+                        .findFirstByUserAndStatusOrderByCreatedAtDesc(
+                                user,
+                                InvoiceStatus.PENDING
+                        );
+
+        if (pendingInvoice.isPresent()) {
+
+            throw new AppException(
+                    ErrorCode.PENDING_INVOICE_EXISTS
+            );
+        }
+
+
 
         Premium premium =
                 premiumRepository
                         .findById(request.getPremiumId())
-                        .orElseThrow();
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.PREMIUM_NOT_FOUND
+                                ));
+
+        if (!premium.getIsActive()) {
+
+            throw new AppException(
+                    ErrorCode.PREMIUM_INACTIVE
+            );
+        }
+
+        Discount discount = premium.getDiscount();
+
+        Double discountPercent = 0.0;
+
+        if (discount != null
+                && Boolean.TRUE.equals(discount.getIsActive())
+                && !LocalDateTime.now().isBefore(discount.getFromDate())
+                && !LocalDateTime.now().isAfter(discount.getToDate())) {
+
+            discountPercent = discount.getDiscountPercent();
+        }
 
         BigDecimal originalAmount =
                 premium.getAmount();
 
-        BigDecimal discountPercent =
-                BigDecimal.ZERO;
-
-//        Tạo invoice trước sau có admin thì sửa lại logic
-        Discount discount =
-                discountRepository
-                        .findAll()
-                        .stream()
-                        .filter(Discount::getIsActive)
-                        .findFirst()
-                        .orElse(null);
-
-        if(discount != null) {
-            discountPercent =
-                    BigDecimal.valueOf(
-                            discount.getDiscountPercent()
-                    );
-        }
-
         BigDecimal discountAmount =
                 originalAmount
-                        .multiply(discountPercent)
+                        .multiply(BigDecimal.valueOf(discountPercent))
                         .divide(
                                 BigDecimal.valueOf(100),
                                 2,
@@ -93,35 +116,166 @@ public class InvoiceServiceImpl
                 Invoice.builder()
                         .user(user)
                         .premium(premium)
-                        .discount(discount)
+                        .discount(discountPercent == 0 ? null : discount)
+
+                        // Snapshot
+
+                        .packageName(
+                                premium.getPackageName()
+                        )
+
+                        .durationDays(
+                                premium.getDurationDays()
+                        )
+
                         .originalAmount(
-                                originalAmount)
+                                originalAmount
+                        )
+
+                        .discountPercent(
+                                discountPercent
+                        )
+
                         .discountAmount(
-                                discountAmount)
+                                discountAmount
+                        )
+
                         .finalAmount(
-                                finalAmount)
-                        .status("PENDING")
-                        .createdAt(
-                                LocalDateTime.now())
+                                finalAmount
+                        )
+
+                        .status(
+                                InvoiceStatus.PENDING
+                        )
+
                         .build();
 
         invoice =
+                invoiceRepository.save(
+                        invoice
+                );
+
+        return mapToResponse(
+                invoice
+        );
+    }
+    @Override
+    public void cancelInvoice(
+            Long invoiceId
+    ){
+
+        Invoice invoice =
                 invoiceRepository
-                        .save(invoice);
+                        .findById(invoiceId)
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.INVOICE_NOT_FOUND
+                                ));
+
+        if(invoice.getStatus() != InvoiceStatus.PENDING){
+
+            throw new AppException(
+                    ErrorCode.INVALID_INVOICE_STATUS
+            );
+        }
+
+        invoice.setStatus(
+                InvoiceStatus.CANCELLED
+        );
+
+        invoiceRepository.save(invoice);
+    }
+
+    @Override
+    public List<InvoiceResponse> getMyInvoices() {
+
+        String email =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getName();
+
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.USER_NOT_FOUND
+                                ));
+
+        return invoiceRepository
+                .findByUser(user)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Override
+    public InvoiceResponse getInvoice(
+            Long invoiceId
+    ) {
+
+        Invoice invoice =
+                invoiceRepository
+                        .findById(invoiceId)
+                        .orElseThrow(() ->
+                                new AppException(
+                                        ErrorCode.INVOICE_NOT_FOUND
+                                ));
+
+        return mapToResponse(
+                invoice
+        );
+    }
+
+    private InvoiceResponse mapToResponse(
+            Invoice invoice
+    ) {
 
         return InvoiceResponse.builder()
+
                 .invoiceId(
-                        invoice.getInvoiceId())
+                        invoice.getInvoiceId()
+                )
+
                 .packageName(
-                        premium.getPackageName())
+                        invoice.getPackageName()
+                )
+
+                .durationDays(
+                        invoice.getDurationDays()
+                )
+                .orderCode(
+                        invoice.getOrderCode()
+                )
                 .originalAmount(
-                        originalAmount)
+                        invoice.getOriginalAmount()
+                )
+
+                .discountPercent(
+                        invoice.getDiscountPercent()
+                )
+
                 .discountAmount(
-                        discountAmount)
+                        invoice.getDiscountAmount()
+                )
+
                 .finalAmount(
-                        finalAmount)
+                        invoice.getFinalAmount()
+                )
+
                 .status(
-                        invoice.getStatus())
+                        invoice.getStatus()
+                )
+
+                .createdAt(
+                        invoice.getCreatedAt()
+                )
+
+                .paidAt(
+                        invoice.getPaidAt()
+                )
+
                 .build();
     }
 

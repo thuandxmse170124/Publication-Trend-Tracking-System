@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -21,12 +22,13 @@ public class Premium {
     @Column(name = "premium_id")
     private Long premiumId;
 
-    @Column(name = "package_name")
+    @Column(name = "package_name", unique = true, nullable = false)
     private String packageName;
 
+    @Column(nullable = false)
     private BigDecimal amount;
 
-    @Column(name = "duration_days")
+    @Column(name = "duration_days", nullable = false)
     private Integer durationDays;
 
     private String description;
@@ -34,14 +36,26 @@ public class Premium {
     @Column(name = "is_active")
     private Boolean isActive;
 
-    @ManyToMany
-    @JoinTable(
-            name = "premium_discounts",
-            joinColumns =
-            @JoinColumn(name = "premium_id"),
-            inverseJoinColumns =
-            @JoinColumn(name = "discount_id")
-    )
-    @Builder.Default
-    private Set<Discount> discounts = new HashSet<>();
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+        isActive = true;
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "discount_id")
+    private Discount discount;
+
 }

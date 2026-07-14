@@ -22,4 +22,15 @@ public class Topic {
 
     @Column(name = "description", columnDefinition = "VARCHAR(MAX)")
     private String description;
+
+    @Builder.Default
+    @Column(name = "trend_score")
+    private Float trendScore = 0.0f;
+
+    @PrePersist
+    public void prePersist() {
+        if (trendScore == null) {
+            trendScore = 0.0f;
+        }
+    }
 }
