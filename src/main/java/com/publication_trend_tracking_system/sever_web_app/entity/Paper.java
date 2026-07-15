@@ -51,6 +51,9 @@ public class Paper {
     @Column(name = "publication_year")
     private Integer publicationYear;
 
+    @Column(name = "openalex_id", unique = true)
+    private String openAlexId;
+    
     @Column(name = "doi", unique = true)
     private String doi;
 
