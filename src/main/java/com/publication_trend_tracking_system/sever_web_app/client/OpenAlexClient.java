@@ -9,62 +9,110 @@ import org.springframework.web.client.RestClient;
 @RequiredArgsConstructor
 public class OpenAlexClient {
 
-    private static final String OPENALEX_BASE_URL =
-            "https://api.openalex.org";
+    private static final String BASE_URL = "https://api.openalex.org";
+
+    private static final String WORKS = "/works";
+    private static final String AUTHORS = "/authors";
 
     private final RestClient.Builder restClientBuilder;
 
-    /**
-     * Tìm OpenAlex Work bằng DOI.
-     *
-     * Ví dụ DOI:
-     * 10.1038/s41586-023-06647-8
+    private RestClient client() {
+        return restClientBuilder
+                .baseUrl(BASE_URL)
+                .build();
+    }
+
+    /*
+     * ==========================
+     * Work API
+     * ==========================
      */
+
     public JsonNode getWorkByDoi(String doi) {
 
-        RestClient restClient = restClientBuilder
-                .baseUrl(OPENALEX_BASE_URL)
-                .build();
-
-        return restClient.get()
+        return client()
+                .get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/works/https://doi.org/{doi}")
+                        .path(WORKS + "/https://doi.org/{doi}")
                         .build(doi))
                 .retrieve()
                 .body(JsonNode.class);
     }
 
-    /**
-     * Lấy Work bằng OpenAlex ID.
-     *
-     * Ví dụ:
-     * W2122410182
-     */
     public JsonNode getWorkByOpenAlexId(String openAlexId) {
 
-        RestClient restClient = restClientBuilder
-                .baseUrl(OPENALEX_BASE_URL)
-                .build();
-
-        return restClient.get()
-                .uri("/works/{openAlexId}", openAlexId)
+        return client()
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(WORKS + "/{id}")
+                        .build(openAlexId))
                 .retrieve()
                 .body(JsonNode.class);
     }
-    /**
-     * Lấy thông tin Author bằng OpenAlex Author ID.
-     *
-     * Ví dụ:
-     * A5088275098
+
+    public JsonNode searchWorks(String keyword) {
+
+        return client()
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(WORKS)
+                        .queryParam("search", keyword)
+                        .build())
+                .retrieve()
+                .body(JsonNode.class);
+    }
+
+    /*
+     * ==========================
+     * Author API
+     * ==========================
      */
+
     public JsonNode getAuthorByOpenAlexId(String authorId) {
 
-        RestClient restClient = restClientBuilder
-                .baseUrl(OPENALEX_BASE_URL)
-                .build();
+        return client()
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(AUTHORS + "/{id}")
+                        .build(authorId))
+                .retrieve()
+                .body(JsonNode.class);
+    }
 
-        return restClient.get()
-                .uri("/authors/{authorId}", authorId)
+    public JsonNode getAuthorWorks(String authorId) {
+
+        return client()
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(WORKS)
+                        .queryParam(
+                                "filter",
+                                "authorships.author.id:https://openalex.org/" + authorId
+                        )
+                        .queryParam("per-page", 20)
+                        .build())
+                .retrieve()
+                .body(JsonNode.class);
+    }
+
+    /*
+     * ==========================
+     * Citation API
+     * ==========================
+     */
+
+    public JsonNode getCitedBy(String openAlexId) {
+
+        return client()
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(WORKS)
+                        .queryParam(
+                                "filter",
+                                "cites:https://openalex.org/" + openAlexId
+                        )
+                        .queryParam("per-page", 20)
+                        .build())
                 .retrieve()
                 .body(JsonNode.class);
     }

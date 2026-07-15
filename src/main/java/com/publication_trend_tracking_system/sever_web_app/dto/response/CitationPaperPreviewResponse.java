@@ -26,4 +26,12 @@ public class CitationPaperPreviewResponse {
     private Boolean openAccess;
 
     private List<String> authors;
+
+    private String primaryTopic;
+
+    private List<String> topics;
+
+    private Integer citationCount;
+
+    private String journal;
 }

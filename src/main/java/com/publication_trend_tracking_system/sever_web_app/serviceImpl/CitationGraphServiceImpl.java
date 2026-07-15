@@ -7,6 +7,7 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.*;
 import com.publication_trend_tracking_system.sever_web_app.entity.Paper;
 import com.publication_trend_tracking_system.sever_web_app.repository.PaperRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.CitationGraphService;
+import com.publication_trend_tracking_system.sever_web_app.service.citation.CitationRelationshipAnalyzer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +24,7 @@ public class CitationGraphServiceImpl implements CitationGraphService {
 
     private final PaperRepository paperRepository;
     private final OpenAlexClient openAlexClient;
+    private final CitationRelationshipAnalyzer citationRelationshipAnalyzer;
 
     @Override
     @Transactional
@@ -214,9 +217,6 @@ public class CitationGraphServiceImpl implements CitationGraphService {
                 .authors(authors)
                 .build();
     }
-
-
-
 
     /**
      * Nếu Paper đã có openAlexId:
@@ -588,6 +588,278 @@ public class CitationGraphServiceImpl implements CitationGraphService {
                 .researchTopics(researchTopics)
                 .build();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CitationPaperNodeResponse> getReferences(
+            Long paperId
+    ) {
+
+        Paper paper = paperRepository.findById(paperId)
+                .orElseThrow(() ->
+                        new RuntimeException("Paper not found"));
+
+        String openAlexId =
+                resolveOpenAlexId(paper);
+
+        JsonNode work =
+                openAlexClient.getWorkByOpenAlexId(
+                        openAlexId
+                );
+
+        JsonNode references =
+                work.path("referenced_works");
+
+        List<CitationPaperNodeResponse> result =
+                new ArrayList<>();
+
+        if (!references.isArray()) {
+            return result;
+        }
+
+        for (JsonNode reference : references) {
+
+            String referenceId =
+                    extractOpenAlexId(
+                            reference.asText()
+                    );
+
+            JsonNode referenceWork =
+                    openAlexClient.getWorkByOpenAlexId(
+                            referenceId
+                    );
+
+            if (referenceWork == null) {
+                continue;
+            }
+
+            result.add(
+                    buildPaperNode(referenceWork)
+            );
+        }
+
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CitationPaperNodeResponse> getCitedBy(
+            Long paperId
+    ) {
+
+        Paper paper = paperRepository.findById(paperId)
+                .orElseThrow(() ->
+                        new RuntimeException("Paper not found"));
+
+        String openAlexId =
+                resolveOpenAlexId(paper);
+
+        JsonNode response =
+                openAlexClient.getCitedBy(openAlexId);
+
+        List<CitationPaperNodeResponse> result =
+                new ArrayList<>();
+
+        JsonNode works =
+                response.path("results");
+
+        if (!works.isArray()) {
+            return result;
+        }
+
+        for (JsonNode work : works) {
+
+            result.add(
+                    buildPaperNode(work)
+            );
+        }
+
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CitationRelationshipResponse getRelationship(
+            Long paperId,
+            String referenceOpenAlexId
+    ) {
+
+        Paper paper =
+                paperRepository.findById(paperId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Paper not found"));
+
+        String sourceOpenAlexId =
+                resolveOpenAlexId(paper);
+
+        JsonNode sourceWork =
+                openAlexClient.getWorkByOpenAlexId(sourceOpenAlexId);
+
+        JsonNode targetWork =
+                openAlexClient.getWorkByOpenAlexId(referenceOpenAlexId);
+
+        return citationRelationshipAnalyzer.analyze(
+                sourceWork,
+                targetWork
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ResearchGuideResponse getResearchGuide(Long paperId) {
+        Paper paper = paperRepository.findById(paperId)
+                .orElseThrow(() -> new RuntimeException("Paper not found: " + paperId));
+        String openAlexId = resolveOpenAlexId(paper);
+        JsonNode centerWork = openAlexClient.getWorkByOpenAlexId(openAlexId);
+        if (centerWork == null) {
+            throw new RuntimeException("Cannot get paper from OpenAlex");
+        }
+
+        List<CitationPaperNodeResponse> references = getReferences(paperId);
+        List<CitationPaperNodeResponse> citedBy = getCitedBy(paperId);
+        references.sort(Comparator.comparing(CitationPaperNodeResponse::getCitedByCount,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+        citedBy.sort(Comparator.comparing(CitationPaperNodeResponse::getCitedByCount,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+
+        String researchArea = firstTopic(centerWork);
+
+        List<CitationPaperNodeResponse> keyReferences = references.stream().limit(3).toList();
+        List<CitationPaperNodeResponse> influencedStudies = citedBy.stream().limit(3).toList();
+        List<ResearchPathStepResponse> path = buildReadingPath(keyReferences, buildPaperNode(centerWork), influencedStudies);
+        List<CitationReasonResponse> reasons = buildCitationReasons(centerWork, citedBy);
+
+        return ResearchGuideResponse.builder()
+                .researchArea(researchArea)
+                .keyReferences(keyReferences)
+                .readingPath(path)
+                .influencedStudies(influencedStudies)
+                .citationInsights(reasons)
+                .build();
+    }
+
+    private List<ResearchPathStepResponse> buildReadingPath(List<CitationPaperNodeResponse> foundations,
+                                                             CitationPaperNodeResponse center,
+                                                             List<CitationPaperNodeResponse> influenced) {
+        List<ResearchPathStepResponse> path = new ArrayList<>();
+        List<CitationPaperNodeResponse> candidates = new ArrayList<>();
+        candidates.addAll(foundations);
+        candidates.add(center);
+        candidates.addAll(influenced);
+        for (int i = 0; i < candidates.size(); i++) {
+            boolean isReference = i < foundations.size();
+            boolean isCurrent = i == foundations.size();
+            String purpose = isReference ? "Review a key reference" :
+                    isCurrent ? "Read the current paper" : "Explore a subsequent study";
+            String reason = isReference ? "This paper is cited by the current paper and is useful context for the topic." :
+                    isCurrent ? "Read this paper after its key references to understand its contribution." :
+                            "This paper cites the current paper and shows how later work connects to it.";
+            path.add(ResearchPathStepResponse.builder().order(i + 1)
+                    .purpose(purpose).reason(reason)
+                    .paper(candidates.get(i)).build());
+        }
+        return path;
+    }
+
+    private List<CitationReasonResponse> buildCitationReasons(JsonNode centerWork,
+                                                                List<CitationPaperNodeResponse> citedBy) {
+        List<CitationReasonResponse> reasons = new ArrayList<>();
+        for (CitationPaperNodeResponse node : citedBy.stream().limit(3).toList()) {
+            JsonNode citingWork = openAlexClient.getWorkByOpenAlexId(node.getOpenAlexId());
+            if (citingWork == null) continue;
+            CitationRelationshipResponse relationship = citationRelationshipAnalyzer.analyze(citingWork, centerWork);
+            CitationEvidenceResponse sourceEvidence = relationship.getEvidence();
+            String connectionStrength = toConnectionStrength(relationship.getScore());
+            reasons.add(CitationReasonResponse.builder().citingPaper(node)
+                    .relationship(toRelationship(connectionStrength))
+                    .connectionStrength(connectionStrength)
+                    .reason(buildCitationInsightReason(connectionStrength, sourceEvidence))
+                    .evidence(CitationInsightEvidenceResponse.builder()
+                            .sharedTopics(sourceEvidence == null ? List.of() : sourceEvidence.getSharedTopics())
+                            .sharedConcepts(sourceEvidence == null ? List.of() : sourceEvidence.getSharedConcepts())
+                            .sharedKeywords(sourceEvidence == null ? List.of() : sourceEvidence.getSharedKeywords())
+                            .sharedAuthors(sourceEvidence == null ? List.of() : sourceEvidence.getSharedAuthors())
+                            .build())
+                    .build());
+        }
+        return reasons;
+    }
+
+    private String firstTopic(JsonNode work) {
+        JsonNode topics = work.path("topics");
+        if (topics.isArray() && !topics.isEmpty()) return topics.get(0).path("display_name").asText("Unclassified research branch");
+        JsonNode concepts = work.path("concepts");
+        if (concepts.isArray() && !concepts.isEmpty()) return concepts.get(0).path("display_name").asText("Unclassified research branch");
+        return "Unclassified research branch";
+    }
+
+    private String toConnectionStrength(Integer score) {
+        if (score == null || score < 40) return "VERY_LOW";
+        if (score < 60) return "LOW";
+        if (score < 80) return "MEDIUM";
+        return "HIGH";
+    }
+
+    private String toRelationship(String connectionStrength) {
+        return switch (connectionStrength) {
+            case "HIGH" -> "Highly Related";
+            case "MEDIUM" -> "Related";
+            case "LOW" -> "Weakly Related";
+            default -> "Low Related";
+        };
+    }
+
+    private String buildCitationInsightReason(String connectionStrength,
+                                              CitationEvidenceResponse evidence) {
+        if (evidence == null) {
+            return "The available metadata indicates a " + connectionStrength.toLowerCase().replace('_', ' ') + " connection.";
+        }
+        List<String> signals = new ArrayList<>();
+        if (evidence.getSharedTopics() != null && !evidence.getSharedTopics().isEmpty()) signals.add("shared research topics");
+        if (evidence.getSharedConcepts() != null && !evidence.getSharedConcepts().isEmpty()) signals.add("shared research concepts");
+        if (evidence.getSharedKeywords() != null && !evidence.getSharedKeywords().isEmpty()) signals.add("shared keywords");
+        if (evidence.getSharedAuthors() != null && !evidence.getSharedAuthors().isEmpty()) signals.add("shared authors");
+        if (signals.isEmpty()) {
+            return "The available metadata indicates a " + connectionStrength.toLowerCase().replace('_', ' ') + " connection.";
+        }
+        return "This is a " + connectionStrength.toLowerCase().replace('_', ' ') +
+                " connection based on " + String.join(", ", signals) + ".";
+    }
+
+    private CitationPaperNodeResponse buildPaperNode(
+            JsonNode work
+    ) {
+
+        return CitationPaperNodeResponse.builder()
+                .openAlexId(
+                        extractOpenAlexId(
+                                work.path("id").asText()
+                        )
+                )
+                .title(
+                        work.path("display_name")
+                                .asText("")
+                )
+                .publicationYear(
+                        getNullableInteger(
+                                work,
+                                "publication_year"
+                        )
+                )
+                .citedByCount(
+                        getNullableInteger(
+                                work,
+                                "cited_by_count"
+                        )
+                )
+                .doi(
+                        getDoi(work)
+                )
+                .build();
+    }
+
+
+
     private String normalizeOrcid(String orcid) {
 
         if (orcid == null || orcid.isBlank()) {
