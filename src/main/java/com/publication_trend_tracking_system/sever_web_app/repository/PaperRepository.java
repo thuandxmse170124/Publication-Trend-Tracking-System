@@ -7,12 +7,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     boolean existsByDoi(String doi);
+    long countByTopics_TopicId(
+            Integer topicId);
 
     java.util.Optional<Paper> findFirstByDoiIgnoreCase(String doi);
 
@@ -63,8 +66,8 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @org.springframework.data.repository.query.Param("topicId") Integer topicId
     );
 
-    @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
-    java.util.List<Object[]> findDistinctYearsWithCount();
+    @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL AND CAST(p.publication_year AS VARCHAR) LIKE :search GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
+    java.util.List<Object[]> findDistinctYearsWithCount(@org.springframework.data.repository.query.Param("search") String search);
 
     @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.TopKeywordResponse(k.keywordName, COUNT(p.paperId)) " +
            "FROM Paper p JOIN p.keywords k " +
@@ -129,5 +132,16 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
                    "ORDER BY (CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1)) DESC", nativeQuery = true)
     List<Paper> findRelatedPapers(@Param("paperId") Long paperId, @Param("topicId") Integer topicId);
 
-    Optional<Paper> findByOpenAlexId(String openAlexId);
+    @Query("""
+        SELECT COUNT(DISTINCT p)
+        FROM Paper p
+        JOIN p.topics t
+        WHERE t.topicId = :topicId
+          AND p.createdAt >= :start
+          AND p.createdAt < :end
+    """)
+        long countTopicPapersBetween(
+                @Param("topicId") Integer topicId,
+                @Param("start") LocalDateTime start,
+                @Param("end") LocalDateTime end);
 }
