@@ -9,6 +9,7 @@ import com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibility
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.*;
+import com.publication_trend_tracking_system.sever_web_app.service.DashboardService;
 import com.publication_trend_tracking_system.sever_web_app.service.SyncService;
 import com.publication_trend_tracking_system.sever_web_app.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,7 @@ public class SyncServiceImpl implements SyncService {
     private final ResearchFieldRepository researchFieldRepository;
     private final org.springframework.context.ApplicationContext applicationContext;
     private final NotificationService notificationService;
+    private final DashboardService dashboardService;
 
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
@@ -219,6 +221,9 @@ public class SyncServiceImpl implements SyncService {
                 log.info("Creating notifications for {} new papers", newPapers.size());
 
                 notificationService.notifyUsersForNewPapers(newPapers);
+                dashboardService
+                        .getAllTopicTrends()
+                        .forEach(notificationService::notifyUsersForTrendingTopic);
             }
 
         } catch (Exception ex) {

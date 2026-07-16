@@ -1,6 +1,7 @@
 package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.NotificationResponse;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicTrendResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.*;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
@@ -329,6 +330,37 @@ public class NotificationServiceImpl
                             userId);
                 }
             }
+        }
+    }
+
+    @Override
+    @Transactional
+    public void notifyUsersForTrendingTopic(
+            TopicTrendResponse trend) {
+
+        if (!"RAPIDLY_RISING".equals(trend.getTrend())) {
+            return;
+        }
+
+        List<FollowTopic> follows =
+                followTopicRepository.findByTopicTopicId(
+                        trend.getTopicId());
+
+        for (FollowTopic follow : follows) {
+
+            Notification notification =
+                    Notification.builder()
+                            .title("Topic Trend Alert")
+                            .message(
+                                    trend.getTopicName()
+                                            + " is rapidly rising ("
+                                            + String.format("%.1f",
+                                            trend.getGrowthRate())
+                                            + "% growth)")
+                            .user(follow.getUser())
+                            .build();
+
+            notificationRepository.save(notification);
         }
     }
 }
