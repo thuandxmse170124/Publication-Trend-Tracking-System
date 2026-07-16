@@ -326,6 +326,7 @@ public class SyncServiceImpl implements SyncService {
     }
 
 
+
     private void parseAndSaveSemanticScholar(String jsonResponse, ApiSource source, Topic topic, Keyword searchKeyword, ResearchField researchField, SyncStats stats) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(jsonResponse);
