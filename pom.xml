@@ -129,6 +129,12 @@
 			<version>2.0.1</version>
 		</dependency>
 
+		<!-- PDFBox for PDF parsing -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>3.0.2</version>
+		</dependency>
 
 	</dependencies>
 

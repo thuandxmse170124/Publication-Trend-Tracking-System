@@ -7,23 +7,34 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     boolean existsByDoi(String doi);
+    long countByTopics_TopicId(
+            Integer topicId);
+
+    java.util.Optional<Paper> findFirstByDoiIgnoreCase(String doi);
 
     java.util.Optional<Paper> findByDoiIgnoreCase(String doi);
+    List<Paper> findAllByDoiInIgnoreCase(java.util.Set<String> dois);
+    List<Paper> findAllByTitleInIgnoreCase(java.util.Set<String> titles);
 
     java.util.List<Paper> findByTitleIgnoreCase(String title);
 
-    List<Paper> findByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
-
-    List<Paper> findAllByOrderByCreatedAtDesc();
+    List<Paper> findTop100ByTitleContainingIgnoreCaseOrderByCreatedAtDesc(String keyword);
+    List<Paper> findTop100ByOrderByCreatedAtDesc();
 
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
 
-    @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(p)) " +
+    @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()) + 1, 0)", nativeQuery = true)
+    long countPapersThisMonth();
+
+    @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()) - 1, 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0)", nativeQuery = true)
+    long countPapersLastMonth();
+    @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(DISTINCT p)) " +
            "FROM Paper p " +
            "LEFT JOIN p.authors a " +
            "LEFT JOIN p.journal j " +
@@ -54,8 +65,8 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @org.springframework.data.repository.query.Param("topicId") Integer topicId
     );
 
-    @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
-    java.util.List<Object[]> findDistinctYearsWithCount();
+    @Query(value = "SELECT p.publication_year, COUNT(p.paper_id) FROM papers p WHERE p.publication_year IS NOT NULL AND CAST(p.publication_year AS VARCHAR) LIKE :search GROUP BY p.publication_year ORDER BY p.publication_year DESC", nativeQuery = true)
+    java.util.List<Object[]> findDistinctYearsWithCount(@org.springframework.data.repository.query.Param("search") String search);
 
     @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.TopKeywordResponse(k.keywordName, COUNT(p.paperId)) " +
            "FROM Paper p JOIN p.keywords k " +
@@ -70,21 +81,37 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
            "ORDER BY COUNT(p.paperId) DESC")
     java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.TopJournalResponse> findTopJournalsByPaperCount(@Param("fieldId") Integer fieldId, org.springframework.data.domain.Pageable pageable);
 
-    @Query("SELECT DISTINCT p FROM Paper p " +
-           "LEFT JOIN p.authors a " +
-           "LEFT JOIN p.journal j " +
-           "LEFT JOIN p.field f " +
-           "LEFT JOIN p.topics t " +
-           "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR p.paperAbstract LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-           "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
-           "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
-           "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
-           "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
-           "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
-           "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
-           "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
-           "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
-           "AND (:topicId IS NULL OR t.topicId = :topicId)")
+
+    @Query(value = "SELECT DISTINCT p FROM Paper p " +
+             "LEFT JOIN p.authors a " +
+             "LEFT JOIN p.journal j " +
+             "LEFT JOIN p.field f " +
+             "LEFT JOIN p.topics t " +
+             "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR p.paperAbstract LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+             "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
+             "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
+             "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
+             "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
+             "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
+             "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
+             "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
+             "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
+             "AND (:topicId IS NULL OR t.topicId = :topicId)",
+           countQuery = "SELECT COUNT(DISTINCT p) FROM Paper p " +
+             "LEFT JOIN p.authors a " +
+             "LEFT JOIN p.journal j " +
+             "LEFT JOIN p.field f " +
+             "LEFT JOIN p.topics t " +
+             "WHERE (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR p.paperAbstract LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+             "AND (:author IS NULL OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :author, '%'))) " +
+             "AND (:journal IS NULL OR LOWER(j.name) LIKE LOWER(CONCAT('%', :journal, '%'))) " +
+             "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
+             "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
+             "AND (:institution IS NULL OR LOWER(a.affiliation) LIKE LOWER(CONCAT('%', :institution, '%'))) " +
+             "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
+             "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
+             "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
+             "AND (:topicId IS NULL OR t.topicId = :topicId)")
     Page<Paper> searchPapers(
             @Param("keyword") String keyword,
             @Param("author") String author,
@@ -98,4 +125,22 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @Param("topicId") Integer topicId,
             Pageable pageable
     );
+    @Query(value = "SELECT TOP 5 p.* FROM papers p " +
+                   "JOIN paper_topics pt ON p.paper_id = pt.paper_id " +
+                   "WHERE pt.topic_id = :topicId AND p.paper_id != :paperId " +
+                   "ORDER BY (CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1)) DESC", nativeQuery = true)
+    List<Paper> findRelatedPapers(@Param("paperId") Long paperId, @Param("topicId") Integer topicId);
+
+    @Query("""
+        SELECT COUNT(DISTINCT p)
+        FROM Paper p
+        JOIN p.topics t
+        WHERE t.topicId = :topicId
+          AND p.createdAt >= :start
+          AND p.createdAt < :end
+    """)
+        long countTopicPapersBetween(
+                @Param("topicId") Integer topicId,
+                @Param("start") LocalDateTime start,
+                @Param("end") LocalDateTime end);
 }

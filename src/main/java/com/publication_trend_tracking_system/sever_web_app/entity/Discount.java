@@ -21,10 +21,10 @@ public class Discount {
     @Column(name = "discount_id")
     private Long discountId;
 
-    @Column(name = "discount_name")
+    @Column(name = "discount_name", nullable = false, unique = true)
     private String discountName;
 
-    @Column(name = "discount_percent")
+    @Column(name = "discount_percent", nullable = false)
     private Double discountPercent;
 
     @Column(name = "from_date")
@@ -35,7 +35,25 @@ public class Discount {
 
     @Column(name = "is_active")
     private Boolean isActive;
-    @ManyToMany(mappedBy = "discounts")
-    @Builder.Default
+
+    @OneToMany(mappedBy = "discount")
     private Set<Premium> premiums = new HashSet<>();
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+        isActive = true;
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

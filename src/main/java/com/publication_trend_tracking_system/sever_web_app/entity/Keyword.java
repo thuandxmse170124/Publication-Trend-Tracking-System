@@ -19,4 +19,15 @@ public class Keyword {
 
     @Column(name = "keyword_name", nullable = false, unique = true)
     private String keywordName;
+
+    @Builder.Default
+    @Column(name = "trend_score")
+    private Float trendScore = 0.0f;
+
+    @PrePersist
+    public void prePersist() {
+        if (trendScore == null) {
+            trendScore = 0.0f;
+        }
+    }
 }
