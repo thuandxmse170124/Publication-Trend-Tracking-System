@@ -391,6 +391,7 @@ public class SyncServiceImpl implements SyncService {
         }
     }
 
+
     private String reconstructAbstractFromJson(JsonNode abstractNode) {
         int maxIndex = 0;
         Iterator<Map.Entry<String, JsonNode>> fields = abstractNode.fields();
