@@ -25,6 +25,16 @@ public interface CitationGraphService {
             String referenceOpenAlexId
     );
 
+    /** Primary node-click API for the Research Context tab. */
+    ResearchContextResponse getResearchContext(Long paperId);
+
+    /** Research Context for a graph node that is identified by OpenAlex. */
+    ResearchContextResponse getResearchContextByOpenAlexId(String openAlexId);
+
+    /**
+     * Kept temporarily for clients that already use the former endpoint name.
+     * New clients should call getResearchContext instead.
+     */
     ResearchGuideResponse getResearchGuide(Long paperId);
 
 }
