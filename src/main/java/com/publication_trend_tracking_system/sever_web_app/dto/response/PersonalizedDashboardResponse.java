@@ -16,4 +16,5 @@ public class PersonalizedDashboardResponse {
     private List<TopicTrendResponse> topicTrends;
 
     private List<PaperResponse> recentPapers;
+
 }
