@@ -352,10 +352,10 @@ public class NotificationServiceImpl
 
         for (FollowTopic follow : follows) {
 
-//            if (!userSubscriptionService.isPremium(
-//                    follow.getUser().getUserId())) {
-//                continue;
-//            }
+            if (!userSubscriptionService.isPremium(
+                    follow.getUser().getUserId())) {
+                continue;
+            }
 
             Notification notification =
                     Notification.builder()
