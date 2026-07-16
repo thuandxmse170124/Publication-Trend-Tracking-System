@@ -7,6 +7,7 @@ import com.publication_trend_tracking_system.sever_web_app.exception.AppExceptio
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.*;
 import com.publication_trend_tracking_system.sever_web_app.service.NotificationService;
+import com.publication_trend_tracking_system.sever_web_app.service.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,9 @@ public class NotificationServiceImpl
 
     private final FollowJournalRepository
             followJournalRepository;
+
+    private final UserSubscriptionService
+            userSubscriptionService;
 
     @Override
     public List<NotificationResponse>
@@ -347,6 +351,11 @@ public class NotificationServiceImpl
                         trend.getTopicId());
 
         for (FollowTopic follow : follows) {
+
+//            if (!userSubscriptionService.isPremium(
+//                    follow.getUser().getUserId())) {
+//                continue;
+//            }
 
             Notification notification =
                     Notification.builder()
