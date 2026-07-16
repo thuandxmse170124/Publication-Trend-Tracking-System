@@ -1,6 +1,7 @@
 package com.publication_trend_tracking_system.sever_web_app.controller;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.request.CreateReportRequest;
+import com.publication_trend_tracking_system.sever_web_app.dto.request.UpdateReportRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiResponse;
 import com.publication_trend_tracking_system.sever_web_app.service.ReportService;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,21 @@ public class ReportController {
                 .message("Success")
                 .result(
                         reportService.getAllReports())
+                .build();
+    }
+
+    @PatchMapping("/admin/{reportId}")
+    public ApiResponse<?> updateReport(
+            @PathVariable Long reportId,
+            @RequestBody UpdateReportRequest request) {
+
+        reportService.updateReport(
+                reportId,
+                request);
+
+        return ApiResponse.builder()
+                .code(1000)
+                .message("Report updated successfully")
                 .build();
     }
 }

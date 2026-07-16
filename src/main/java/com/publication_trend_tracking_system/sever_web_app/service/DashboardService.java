@@ -11,7 +11,7 @@ import java.util.List;
 public interface DashboardService {
     SystemStatsResponse getSystemStats();
     PersonalStatsResponse getPersonalStats();
-
+    List<TopicTrendResponse> getAllTopicTrends();
     PersonalizedDashboardResponse getPersonalizedDashboard();
     List<TopicTrendResponse> getTopicTrends();
 

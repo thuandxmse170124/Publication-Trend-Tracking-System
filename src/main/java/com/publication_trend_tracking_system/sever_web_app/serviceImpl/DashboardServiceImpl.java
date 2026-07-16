@@ -6,10 +6,7 @@ import com.publication_trend_tracking_system.sever_web_app.entity.Topic;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
-import com.publication_trend_tracking_system.sever_web_app.repository.FollowTopicRepository;
-import com.publication_trend_tracking_system.sever_web_app.repository.PaperRepository;
-import com.publication_trend_tracking_system.sever_web_app.repository.TopicRepository;
-import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
+import com.publication_trend_tracking_system.sever_web_app.repository.*;
 import com.publication_trend_tracking_system.sever_web_app.service.DashboardService;
 import com.publication_trend_tracking_system.sever_web_app.entity.FollowTopic;
 import com.publication_trend_tracking_system.sever_web_app.service.UserSubscriptionService;
@@ -18,8 +15,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.publication_trend_tracking_system.sever_web_app.entity.BookmarkPaper;
+import com.publication_trend_tracking_system.sever_web_app.entity.Paper;
+import com.publication_trend_tracking_system.sever_web_app.repository.BookmarkPaperRepository;
+
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +35,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final UserRepository userRepository;
     private final FollowTopicRepository followTopicRepository;
     private final UserSubscriptionService userSubscriptionService;
+    private final BookmarkPaperRepository bookmarkPaperRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -106,83 +111,11 @@ public class DashboardServiceImpl implements DashboardService {
                                         ErrorCode.USER_NOT_FOUND));
         validatePremium(user);
 
-
-
         return followTopicRepository
-                .findByUserUserId(
-                        user.getUserId())
+                .findByUserUserId(user.getUserId())
                 .stream()
-                .map(follow -> {
-
-                    Integer topicId =
-                            follow.getTopic()
-                                    .getTopicId();
-
-                    LocalDateTime now = LocalDateTime.now();
-
-                    LocalDateTime currentStart =
-                            now.minusDays(30);
-
-                    LocalDateTime previousStart =
-                            now.minusDays(60);
-
-                    long currentCount =
-                            paperRepository.countTopicPapersBetween(
-                                    topicId,
-                                    currentStart,
-                                    now);
-
-                    long previousCount =
-                            paperRepository.countTopicPapersBetween(
-                                    topicId,
-                                    previousStart,
-                                    currentStart);
-
-                    Double growthRate = null;
-
-                    long paperCount = currentCount;
-
-                    String trend;
-
-                    if (previousCount == 0) {
-
-                        if (currentCount == 0) {
-
-                            trend = "NO_DATA";
-
-                        } else {
-
-                            trend = "EMERGING";
-                        }
-
-                    } else {
-
-                        growthRate =
-                                ((double)(currentCount - previousCount)
-                                        / previousCount) * 100;
-
-                        if (growthRate >= 30) {
-                            trend = "RAPIDLY_RISING";
-                        } else if (growthRate >= 10) {
-                            trend = "RISING";
-                        } else if (growthRate <= -10) {
-                            trend = "DECLINING";
-                        } else {
-                            trend = "STABLE";
-                        }
-                    }
-
-                    return TopicTrendResponse
-                            .builder()
-                            .topicId(topicId)
-                            .topicName(follow.getTopic().getTopicName())
-                            .paperCount(paperCount)
-                            .trend(trend)
-                            .previousPaperCount(previousCount)
-                            .currentPaperCount(currentCount)
-                            .growthRate(growthRate)
-                            .build();
-                })
+                .map(follow ->
+                        calculateTrend(follow.getTopic()))
                 .toList();
     }
     @Override
@@ -228,25 +161,44 @@ public class DashboardServiceImpl implements DashboardService {
         List<TopicTrendResponse> topicTrends =
                 getTopicTrends();
 
+        Set<Long> bookmarkedPaperIds =
+                bookmarkPaperRepository
+                        .findByUserUserId(user.getUserId())
+                        .stream()
+                        .map(BookmarkPaper::getPaperId)
+                        .collect(Collectors.toSet());
+
+        List<Paper> candidatePapers =
+                new ArrayList<>(
+                        follows.stream()
+                                .flatMap(follow ->
+                                        paperRepository
+                                                .findByTopics_TopicId(
+                                                        follow.getTopic().getTopicId())
+                                                .stream())
+                                .filter(paper ->
+                                        !bookmarkedPaperIds.contains(
+                                                paper.getPaperId()))
+                                .collect(Collectors.toMap(
+                                        Paper::getPaperId,
+                                        paper -> paper,
+                                        (first, second) -> first
+                                ))
+                                .values()
+                );
+
+        Collections.shuffle(candidatePapers);
+
         List<PaperResponse> recentPapers =
-                follows.stream()
-                        .flatMap(follow ->
-                                paperRepository
-                                        .findTop10ByTopics_TopicIdOrderByCreatedAtDesc(
-                                                follow.getTopic()
-                                                        .getTopicId())
-                                        .stream())
+                candidatePapers.stream()
                         .limit(10)
                         .map(paper ->
                                 PaperResponse.builder()
-                                        .paperId(
-                                                paper.getPaperId())
-                                        .title(
-                                                paper.getTitle())
+                                        .paperId(paper.getPaperId())
+                                        .title(paper.getTitle())
                                         .publicationYear(
                                                 paper.getPublicationYear())
-                                        .doi(
-                                                paper.getDoi())
+                                        .doi(paper.getDoi())
                                         .citationCount(
                                                 paper.getCitationCount())
                                         .isOpenAccess(
@@ -263,6 +215,87 @@ public class DashboardServiceImpl implements DashboardService {
                 .recentPapers(
                         recentPapers)
                 .build();
+    }
+
+    private TopicTrendResponse calculateTrend(Topic topic) {
+
+        Integer topicId = topic.getTopicId();
+
+        LocalDateTime now = LocalDateTime.now();
+
+        LocalDateTime currentStart = now.minusDays(30);
+        LocalDateTime previousStart = now.minusDays(60);
+
+        long currentCount =
+                paperRepository.countTopicPapersBetween(
+                        topicId,
+                        currentStart,
+                        now);
+
+        long previousCount =
+                paperRepository.countTopicPapersBetween(
+                        topicId,
+                        previousStart,
+                        currentStart);
+
+        Double growthRate = null;
+        Double trendScore = null;
+
+        long paperCount = currentCount;
+
+        String trend;
+
+        if (currentCount == 0 && previousCount == 0) {
+
+            trend = "NO_DATA";
+
+        } else if (currentCount < 10) {
+
+            trend = "LOW_ACTIVITY";
+
+        } else if (previousCount == 0) {
+
+            trend = "EMERGING";
+
+        } else {
+
+            growthRate =
+                    ((double) (currentCount - previousCount)
+                            / previousCount) * 100;
+
+            trendScore = growthRate;
+
+            if (growthRate >= 30) {
+                trend = "RAPIDLY_RISING";
+            } else if (growthRate >= 10) {
+                trend = "RISING";
+            } else if (growthRate <= -10) {
+                trend = "DECLINING";
+            } else {
+                trend = "STABLE";
+            }
+        }
+
+        return TopicTrendResponse.builder()
+                .topicId(topicId)
+                .topicName(topic.getTopicName())
+                .paperCount(paperCount)
+                .previousPaperCount(previousCount)
+                .currentPaperCount(currentCount)
+                .growthRate(growthRate)
+                .trendScore(trendScore)
+                .trend(trend)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TopicTrendResponse> getAllTopicTrends() {
+
+        return topicRepository.findAll()
+                .stream()
+                .map(this::calculateTrend)
+                .toList();
     }
 
     private void validatePremium(User user) {

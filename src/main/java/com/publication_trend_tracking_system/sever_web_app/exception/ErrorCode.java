@@ -190,7 +190,7 @@ public enum ErrorCode {
             1404,
             "Folder name already exists",
             HttpStatus.BAD_REQUEST),
-    
+
     PAPER_ALREADY_SAVED(
             1405,
             "Paper already saved",
@@ -200,7 +200,7 @@ public enum ErrorCode {
             1406,
             "Saved paper not found",
             HttpStatus.NOT_FOUND),
-    
+
     // Report Ticket
     REPORT_NOT_FOUND(
             1501,
@@ -323,17 +323,26 @@ public enum ErrorCode {
             "API source is currently inactive",
             HttpStatus.BAD_REQUEST),
 
+    // Notification
+    NOTIFICATION_NOT_FOUND(
+            1801,
+            "Notification does not exist",
+            HttpStatus.NOT_FOUND),
+
+    NOTIFICATION_ALREADY_READ(
+            1802,
+            "Notification is already marked as read",
+            HttpStatus.BAD_REQUEST),
+
     DISCOUNT_ALREADY_ASSIGNED(
         3006,
                 "Discount has already been assigned to this premium package",
-        HttpStatus.BAD_REQUEST
-        ),
+        HttpStatus.BAD_REQUEST),
 
     DISCOUNT_NOT_ASSIGNED(
-        3007,
+            3007,
                 "Discount is not assigned to this premium package",
-        HttpStatus.NOT_FOUND
-        );
+        HttpStatus.NOT_FOUND);
     private final int code;
     private final String message;
     private final HttpStatus statusCode;
