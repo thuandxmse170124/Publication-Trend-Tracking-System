@@ -602,43 +602,7 @@ public class CitationGraphServiceImpl implements CitationGraphService {
         String openAlexId =
                 resolveOpenAlexId(paper);
 
-        JsonNode work =
-                openAlexClient.getWorkByOpenAlexId(
-                        openAlexId
-                );
-
-        JsonNode references =
-                work.path("referenced_works");
-
-        List<CitationPaperNodeResponse> result =
-                new ArrayList<>();
-
-        if (!references.isArray()) {
-            return result;
-        }
-
-        for (JsonNode reference : references) {
-
-            String referenceId =
-                    extractOpenAlexId(
-                            reference.asText()
-                    );
-
-            JsonNode referenceWork =
-                    openAlexClient.getWorkByOpenAlexId(
-                            referenceId
-                    );
-
-            if (referenceWork == null) {
-                continue;
-            }
-
-            result.add(
-                    buildPaperNode(referenceWork)
-            );
-        }
-
-        return result;
+        return getReferencesByOpenAlexId(openAlexId);
     }
 
     @Override
@@ -654,27 +618,7 @@ public class CitationGraphServiceImpl implements CitationGraphService {
         String openAlexId =
                 resolveOpenAlexId(paper);
 
-        JsonNode response =
-                openAlexClient.getCitedBy(openAlexId);
-
-        List<CitationPaperNodeResponse> result =
-                new ArrayList<>();
-
-        JsonNode works =
-                response.path("results");
-
-        if (!works.isArray()) {
-            return result;
-        }
-
-        for (JsonNode work : works) {
-
-            result.add(
-                    buildPaperNode(work)
-            );
-        }
-
-        return result;
+        return getCitedByOpenAlexId(openAlexId);
     }
 
     @Override
@@ -706,7 +650,7 @@ public class CitationGraphServiceImpl implements CitationGraphService {
 
     @Override
     @Transactional(readOnly = true)
-    public ResearchGuideResponse getResearchGuide(Long paperId) {
+    public ResearchContextResponse getResearchContext(Long paperId) {
         Paper paper = paperRepository.findById(paperId)
                 .orElseThrow(() -> new RuntimeException("Paper not found: " + paperId));
         String openAlexId = resolveOpenAlexId(paper);
@@ -715,8 +659,23 @@ public class CitationGraphServiceImpl implements CitationGraphService {
             throw new RuntimeException("Cannot get paper from OpenAlex");
         }
 
-        List<CitationPaperNodeResponse> references = getReferences(paperId);
-        List<CitationPaperNodeResponse> citedBy = getCitedBy(paperId);
+        return buildResearchContext(centerWork, getReferencesByOpenAlexId(openAlexId), getCitedByOpenAlexId(openAlexId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ResearchContextResponse getResearchContextByOpenAlexId(String openAlexId) {
+        String normalizedId = extractOpenAlexId(openAlexId);
+        JsonNode centerWork = openAlexClient.getWorkByOpenAlexId(normalizedId);
+        if (centerWork == null || centerWork.path("id").asText().isBlank()) {
+            throw new RuntimeException("Cannot find paper on OpenAlex: " + normalizedId);
+        }
+        return buildResearchContext(centerWork, getReferencesByOpenAlexId(normalizedId), getCitedByOpenAlexId(normalizedId));
+    }
+
+    private ResearchContextResponse buildResearchContext(JsonNode centerWork,
+                                                          List<CitationPaperNodeResponse> references,
+                                                          List<CitationPaperNodeResponse> citedBy) {
         references.sort(Comparator.comparing(CitationPaperNodeResponse::getCitedByCount,
                 Comparator.nullsLast(Comparator.reverseOrder())));
         citedBy.sort(Comparator.comparing(CitationPaperNodeResponse::getCitedByCount,
@@ -729,12 +688,49 @@ public class CitationGraphServiceImpl implements CitationGraphService {
         List<ResearchPathStepResponse> path = buildReadingPath(keyReferences, buildPaperNode(centerWork), influencedStudies);
         List<CitationReasonResponse> reasons = buildCitationReasons(centerWork, citedBy);
 
-        return ResearchGuideResponse.builder()
+        return ResearchContextResponse.builder()
                 .researchArea(researchArea)
                 .keyReferences(keyReferences)
                 .readingPath(path)
                 .influencedStudies(influencedStudies)
                 .citationInsights(reasons)
+                .build();
+    }
+
+    private List<CitationPaperNodeResponse> getReferencesByOpenAlexId(String openAlexId) {
+        JsonNode work = openAlexClient.getWorkByOpenAlexId(openAlexId);
+        List<CitationPaperNodeResponse> result = new ArrayList<>();
+        JsonNode references = work.path("referenced_works");
+        if (!references.isArray()) return result;
+
+        for (JsonNode reference : references) {
+            JsonNode referenceWork = openAlexClient.getWorkByOpenAlexId(extractOpenAlexId(reference.asText()));
+            if (referenceWork != null) result.add(buildPaperNode(referenceWork));
+        }
+        return result;
+    }
+
+    private List<CitationPaperNodeResponse> getCitedByOpenAlexId(String openAlexId) {
+        JsonNode response = openAlexClient.getCitedBy(openAlexId);
+        List<CitationPaperNodeResponse> result = new ArrayList<>();
+        JsonNode works = response.path("results");
+        if (!works.isArray()) return result;
+
+        for (JsonNode work : works) result.add(buildPaperNode(work));
+        return result;
+    }
+
+    /** Backward-compatible adapter for the former Research Guide endpoint. */
+    @Override
+    @Transactional(readOnly = true)
+    public ResearchGuideResponse getResearchGuide(Long paperId) {
+        ResearchContextResponse context = getResearchContext(paperId);
+        return ResearchGuideResponse.builder()
+                .researchArea(context.getResearchArea())
+                .keyReferences(context.getKeyReferences())
+                .readingPath(context.getReadingPath())
+                .influencedStudies(context.getInfluencedStudies())
+                .citationInsights(context.getCitationInsights())
                 .build();
     }
 

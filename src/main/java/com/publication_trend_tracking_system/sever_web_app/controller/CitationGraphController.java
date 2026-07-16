@@ -98,11 +98,38 @@ public class CitationGraphController {
                 .build();
     }
 
-    /** A navigation-first view: what this paper means and what to read next. */
-    @GetMapping("/{paperId}/research-guide")
-    public ApiResponse<ResearchGuideResponse> getResearchGuide(
+    /**
+     * Node-click API. The UI uses this result to render the Research Context
+     * tab: research area, key references, reading path, influenced studies and
+     * citation insights.
+     */
+    @GetMapping("/{paperId}/research-context")
+    public ApiResponse<ResearchContextResponse> getResearchContext(
             @PathVariable Long paperId
     ) {
+        return ApiResponse.<ResearchContextResponse>builder()
+                .code(1000)
+                .message("Get Research Context Success")
+                .result(citationGraphService.getResearchContext(paperId))
+                .build();
+    }
+
+    /** Enables Research Context for any node selected in a citation graph. */
+    @GetMapping("/openalex/{openAlexId}/research-context")
+    public ApiResponse<ResearchContextResponse> getResearchContextByOpenAlexId(
+            @PathVariable String openAlexId
+    ) {
+        return ApiResponse.<ResearchContextResponse>builder()
+                .code(1000)
+                .message("Get Research Context Success")
+                .result(citationGraphService.getResearchContextByOpenAlexId(openAlexId))
+                .build();
+    }
+
+    /** @deprecated Use /{paperId}/research-context. */
+    @Deprecated
+    @GetMapping("/{paperId}/research-guide")
+    public ApiResponse<ResearchGuideResponse> getResearchGuide(@PathVariable Long paperId) {
         return ApiResponse.<ResearchGuideResponse>builder()
                 .code(1000)
                 .message("Get Research Guide Success")
