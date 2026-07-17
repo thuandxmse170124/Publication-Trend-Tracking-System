@@ -102,15 +102,15 @@ class SyncServiceTest {
         when(researchFieldRepository.findFirstByFieldNameIgnoreCase(anyString()))
                 .thenReturn(Optional.of(new ResearchField()));
 
-        SyncServiceImpl.SyncStats stats = new SyncServiceImpl.SyncStats();
+        int[] counts = new int[2];
 
         // Act
-        syncService.saveResultsInTransaction(mockOpenAlexJson, source, "Machine Learning", stats);
+        syncService.saveResultsInTransaction(mockOpenAlexJson, source, "Machine Learning", counts, new java.util.ArrayList<>(), null);
 
         // Assert
-        assertEquals(1, stats.addedCount);
-        verify(paperRepository, times(1)).saveAll(any());
-        verify(authorRepository, times(1)).saveAll(any());
-        verify(journalRepository, times(1)).saveAll(any());
+        assertEquals(1, counts[0]);
+        verify(paperRepository, times(1)).save(any());
+        verify(authorRepository, times(1)).save(any());
+        verify(journalRepository, times(1)).save(any());
     }
 }
