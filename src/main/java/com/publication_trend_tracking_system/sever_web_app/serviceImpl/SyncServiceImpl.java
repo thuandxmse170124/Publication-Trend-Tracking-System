@@ -46,6 +46,7 @@ public class SyncServiceImpl implements SyncService {
         public String journalName;
         public Set<String> authorNames = new HashSet<>();
         public Set<String> topicNames = new HashSet<>();
+        public Set<String> keywordNames = new HashSet<>();
         public LocalDate publicationDate;
     }
 
@@ -355,6 +356,15 @@ public class SyncServiceImpl implements SyncService {
                         }
                     }
                 }
+                JsonNode keywordsNode = work.path("keywords");
+                if (keywordsNode.isArray()) {
+                    for (JsonNode keywordNode : keywordsNode) {
+                        String kwName = keywordNode.path("display_name").asText(null);
+                        if (kwName != null && !kwName.isBlank()) {
+                            dto.keywordNames.add(kwName.trim());
+                        }
+                    }
+                }
 
                 saveOrUpdatePaper(dto, topic, searchKeyword, researchField, source, counts, newPapers);
             }
@@ -469,7 +479,13 @@ public class SyncServiceImpl implements SyncService {
         paper.setAuthors(paperAuthors);
 
         Set<Keyword> keywords = new HashSet<>(paper.getKeywords() != null ? paper.getKeywords() : new HashSet<>());
-        if (searchKeyword != null) keywords.add(searchKeyword);
+        for (String kwName : dto.keywordNames) {
+            Keyword kw = keywordRepository.findFirstByKeywordNameIgnoreCase(kwName).orElse(null);
+            if (kw == null) {
+                kw = keywordRepository.save(Keyword.builder().keywordName(kwName).build());
+            }
+            keywords.add(kw);
+        }
         paper.setKeywords(keywords);
 
         Set<Topic> topicsSet = new HashSet<>(paper.getTopics() != null ? paper.getTopics() : new HashSet<>());
