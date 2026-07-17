@@ -87,7 +87,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                         CompletableFuture.runAsync(() -> {
                             try {
                                 log.info("STARTING MASSIVE PRE-LOAD DATA for source: {}", source.getSourceName());
-                                syncService.syncFromSource(source.getSourceId(), null, null);
+                                syncService.syncFromSource(source.getSourceId(), null, null, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange.ALL);
                                 log.info("MASSIVE PRE-LOAD DATA COMPLETED for source: {}", source.getSourceName());
                             } catch (Exception e) {
                                 log.error("Error during massive pre-load data: ", e);
