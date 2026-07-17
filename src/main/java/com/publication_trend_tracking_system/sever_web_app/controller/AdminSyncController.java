@@ -26,6 +26,7 @@ public class AdminSyncController {
     public ApiResponse<SyncJobResponse> triggerSync(
             @PathVariable Integer sourceId,
             @RequestParam(required = false) String query,
+            @RequestParam(defaultValue = "ALL") com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange,
             Authentication authentication) {
 
         User user = null;
@@ -36,7 +37,7 @@ public class AdminSyncController {
         }
 
         Long userId = user != null ? user.getUserId() : null;
-        SyncJobResponse result = syncService.syncFromSource(sourceId, userId, query);
+        SyncJobResponse result = syncService.syncFromSource(sourceId, userId, query, timeRange);
 
         return ApiResponse.<SyncJobResponse>builder()
                 .code(1000)
@@ -84,6 +85,7 @@ public class AdminSyncController {
     @PostMapping("/trigger-all/{sourceId}")
     public ApiResponse<SyncJobResponse> triggerSyncAll(
             @PathVariable Integer sourceId,
+            @RequestParam(defaultValue = "ALL") com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange,
             Authentication authentication) {
 
         User user = null;
@@ -93,7 +95,7 @@ public class AdminSyncController {
         }
 
         Long userId = user != null ? user.getUserId() : null;
-        SyncJobResponse result = syncService.syncAll(sourceId, userId);
+        SyncJobResponse result = syncService.syncAll(sourceId, userId, timeRange);
 
         return ApiResponse.<SyncJobResponse>builder()
                 .code(1000)

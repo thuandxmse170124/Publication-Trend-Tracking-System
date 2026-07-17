@@ -4,9 +4,9 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.SyncJobR
 import org.springframework.data.domain.Page;
 
 public interface SyncService {
-    SyncJobResponse syncFromSource(Integer sourceId, Long userId, String customQuery);
-    void executeSyncJob(Long jobId, Integer sourceId, String customQuery);
+    SyncJobResponse syncFromSource(Integer sourceId, Long userId, String customQuery, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange);
+    void executeSyncJob(Long jobId, Integer sourceId, String customQuery, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange);
     Page<SyncJobResponse> getSyncLogs(int page, int size);
     SyncJobResponse retrySyncJob(Long jobId, Long userId);
-    SyncJobResponse syncAll(Integer sourceId, Long userId);
+    SyncJobResponse syncAll(Integer sourceId, Long userId, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange);
 }
