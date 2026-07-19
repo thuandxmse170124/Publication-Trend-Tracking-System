@@ -26,7 +26,7 @@ public class SyncScheduler {
             if ("ACTIVE".equalsIgnoreCase(source.getStatus())) {
                 try {
                     log.info("Triggering scheduled sync for source: {}", source.getSourceName());
-                    syncService.syncFromSource(source.getSourceId(), null, null);
+                    syncService.syncFromSource(source.getSourceId(), null, null, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange.DAY);
                 } catch (Exception ex) {
                     log.error("Failed to run scheduled sync for source: " + source.getSourceName(), ex);
                 }

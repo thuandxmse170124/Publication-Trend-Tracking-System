@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Publication Trend Tracker — Premium Editorial</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <style>
+    /* DESIGN SYSTEM: EDITORIAL LUXURY & IMPECCABLE MINIMALISM */
+    :root {
+      --bg-canvas: #f2f0ea; 
+      --bg-surface: #fdfcf8;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --text-primary: #141413;
+      --text-secondary: #74736f;
+      
+      --font-serif: 'Newsreader', serif;
+      --font-sans: 'Geist', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding: 3rem 2rem;
+      display: flex;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Subtle paper noise */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      opacity: 0.02;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    .container {
+      max-width: 1280px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+    header {
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      opacity: 0; /* for GSAP */
+    }
+
+    .header-left {
+      max-width: 600px;
+    }
+
+    .brand-title {
+      font-family: var(--font-serif);
+      font-size: 3.5rem;
+      font-weight: 400;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      margin-bottom: 1rem;
+    }
+
+    .header-description {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-weight: 400;
+    }
+
+    .meta-date {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: right;
+    }
+
+    /* HAIR-THIN BENTO GRID TRICK */
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1px;
+      background-color: var(--border-color);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      overflow: hidden; 
+    }
+
+    .grid-cell {
+      background-color: var(--bg-surface);
+      padding: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      opacity: 0; /* for GSAP */
+    }
+
+    .col-3 { grid-column: span 3; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    .col-8 { grid-column: span 8; }
+    .col-12 { grid-column: span 12; }
+
+    .cell-title {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+
+    /* TYPOGRAPHY IN CELLS */
+    .metric-value {
+      font-family: var(--font-serif);
+      font-size: 4.5rem;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+    }
+
+    .metric-sub {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: auto;
+    }
+
+    .tag {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.4rem 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+      cursor: default;
+    }
+
+    .tag:hover {
+      background-color: var(--text-primary);
+      color: var(--bg-surface);
+    }
+
+    /* TABLES / LISTS */
+    .table-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--border-color);
+      transition: background-color 0.2s ease;
+    }
+
+    .table-row:first-child {
+      padding-top: 0;
+    }
+
+    .table-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .row-title {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .row-meta {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .row-metric {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+
+    /* MAGNETIC BUTTON */
+    .magnetic-btn {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.6rem 1.25rem;
+      background-color: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: 30px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      transition: border-color 0.3s ease, color 0.3s ease;
+    }
+
+    .magnetic-btn::before {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--text-primary);
+      transition: transform 0.3s cubic-bezier(0.7, 0, 0.2, 1);
+      z-index: -1;
+    }
+
+    .magnetic-btn:hover {
+      color: var(--bg-surface);
+      border-color: var(--text-primary);
+    }
+
+    .magnetic-btn:hover::before {
+      transform: translateY(-100%);
+    }
+
+    /* CHARTS & CANVAS */
+    .chart-container {
+      position: relative;
+      height: 350px;
+      width: 100%;
+      margin-top: auto;
+    }
+
+    .canvas-container {
+      position: relative;
+      height: 350px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+    }
+
+    .canvas-container:active {
+      cursor: grabbing;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .globe-quote {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      font-style: italic;
+      color: var(--text-primary);
+      pointer-events: none;
+    }
+
+    /* CUSTOM HTML TOOLTIP */
+    #chartjs-tooltip {
+      position: absolute;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      padding: 12px;
+      pointer-events: none;
+      transform: translate(-50%, -100%);
+      transition: all 0.1s ease;
+      opacity: 0;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+      z-index: 100;
+      border-radius: 4px;
+    }
+
+    .tooltip-title {
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .tooltip-value {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    
+    @media (max-width: 1024px) {
+      .col-3, .col-4, .col-6, .col-8 {
+        grid-column: span 12;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header class="gsap-anim">
+      <div class="header-left">
+        <h1 class="brand-title">Publication Trend Tracker</h1>
+        <p class="header-description">
+          An editorial approach to tracking academic publications and cross-reference citations. 
+          Rendered with extreme precision, utilizing mathematical 3D projections and linear grid layouts.
+        </p>
+      </div>
+      <div class="meta-date">
+        Q3 Edition<br>
+        Vol. 2026
+      </div>
+    </header>
+
+    <div class="bento-grid">
+      
+      <!-- Row 1 -->
+      <div class="grid-cell col-3 gsap-anim">
+        <div class="cell-title">Publications</div>
+        <div>
+          <div class="metric-value">1,482</div>
+          <div class="metric-sub">+12.4% so với năm trước</div>
+        </div>
+      </div>
+
+      <div class="grid-cell col-3 gsap-anim">
+        <div class="cell-title">Citations</div>
+        <div>
+          <div class="metric-value">8,941</div>
+          <div class="metric-sub">Chỉ số trích dẫn tích lũy</div>
+        </div>
+      </div>
+
+      <div class="grid-cell col-6 gsap-anim">
+        <div class="cell-title">Trending Domains</div>
+        <p class="metric-sub" style="margin-bottom: 1.5rem; max-width: 400px;">
+          Các lĩnh vực nghiên cứu đang thu hút sự chú ý mạnh mẽ từ giới học thuật trong 12 tháng qua.
+        </p>
+        <div class="tag-list">
+          <span class="tag">Machine Learning</span>
+          <span class="tag">AI Security</span>
+          <span class="tag">LLM Agents</span>
+          <span class="tag">RAG Pipeline</span>
+          <span class="tag">Big Data</span>
+          <span class="tag">Quantum Computing</span>
+        </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="grid-cell col-6 gsap-anim">
+        <div class="cell-title">Annual Growth</div>
+        <div class="chart-container">
+          <canvas id="editorialChart"></canvas>
+          <div id="chartjs-tooltip"></div>
+        </div>
+      </div>
+
+      <div class="grid-cell col-6 gsap-anim">
+        <div class="cell-title">Knowledge Network</div>
+        <div class="canvas-container">
+          <canvas id="knowledgeGlobe3D"></canvas>
+          <div class="globe-quote">"Research is formalized curiosity."</div>
+        </div>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="grid-cell col-4 gsap-anim">
+        <div class="cell-title">Leading Contributors</div>
+        <div class="table-list">
+          <div class="table-row">
+            <div>
+              <div class="row-title">T. Lan</div>
+              <div class="row-meta">Lan.T@university.edu</div>
+            </div>
+            <div class="row-metric">42 Papers</div>
+          </div>
+          <div class="table-row">
+            <div>
+              <div class="row-title">N. Minh</div>
+              <div class="row-meta">Minh.N@university.edu</div>
+            </div>
+            <div class="row-metric">38 Papers</div>
+          </div>
+          <div class="table-row">
+            <div>
+              <div class="row-title">H. Dũng</div>
+              <div class="row-meta">Dung.H@university.edu</div>
+            </div>
+            <div class="row-metric">29 Papers</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-cell col-8 gsap-anim">
+        <div class="cell-title">Recent Academic Publications</div>
+        <div class="table-list">
+          <div class="table-row">
+            <div>
+              <div class="row-title" style="font-family: var(--font-serif); font-size: 1.35rem;">Phân tích xu hướng nghiên cứu AI bằng đồ thị tri thức ngữ cảnh</div>
+              <div class="row-meta" style="margin-top: 0.5rem;">Tác giả: T. Lan, N. Minh — Ngày đăng: 2026-07-08</div>
+            </div>
+            <button class="magnetic-btn">Abstract</button>
+          </div>
+          <div class="table-row">
+            <div>
+              <div class="row-title" style="font-family: var(--font-serif); font-size: 1.35rem;">Tăng cường an toàn container Docker sử dụng chuẩn bảo mật CIS Benchmarks</div>
+              <div class="row-meta" style="margin-top: 0.5rem;">Tác giả: H. Dũng — Ngày đăng: 2026-07-05</div>
+            </div>
+            <button class="magnetic-btn">Abstract</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Lenis Smooth Scroll -->
+  <script src="https://unpkg.com/@studio-freight/lenis@1.0.36/dist/lenis.min.js"></script>
+
+  <script>
+    // 1. Lenis Smooth Scroll
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true
+    });
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    // 2. GSAP Entry Animations
+    gsap.to(".gsap-anim", {
+      y: 0,
+      opacity: 1,
+      duration: 1.2,
+      stagger: 0.15,
+      ease: "power3.out",
+      onStart: function() {
+        gsap.set(".gsap-anim", { y: 30, opacity: 0 });
+      }
+    });
+
+    // 3. Magnetic Buttons (Impeccable Minimalism)
+    const magnets = document.querySelectorAll('.magnetic-btn');
+    magnets.forEach(btn => {
+      btn.addEventListener('mousemove', function(e) {
+        const position = btn.getBoundingClientRect();
+        const x = e.clientX - position.left - position.width / 2;
+        const y = e.clientY - position.top - position.height / 2;
+        gsap.to(btn, { x: x * 0.3, y: y * 0.3, duration: 0.3, ease: "power2.out" });
+      });
+      btn.addEventListener('mouseleave', function() {
+        gsap.to(btn, { x: 0, y: 0, duration: 0.5, ease: "elastic.out(1, 0.3)" });
+      });
+    });
+
+    // 4. Custom Chart.js (Editorial Style)
+    function initChart() {
+      const ctx = document.getElementById('editorialChart').getContext('2d');
+      
+      // Create Gradient for Line
+      let gradient = ctx.createLinearGradient(0, 0, 0, 350);
+      gradient.addColorStop(0, 'rgba(20, 20, 19, 0.08)');
+      gradient.addColorStop(1, 'rgba(20, 20, 19, 0)');
+
+      // Custom HTML Tooltip function
+      const customTooltip = (context) => {
+        const tooltipEl = document.getElementById('chartjs-tooltip');
+        const tooltipModel = context.tooltip;
+
+        if (tooltipModel.opacity === 0) {
+          tooltipEl.style.opacity = 0;
+          return;
+        }
+
+        if (tooltipModel.body) {
+          const titleLines = tooltipModel.title || [];
+          const bodyLines = tooltipModel.body.map(b => b.lines);
+
+          let innerHtml = '<div class="tooltip-title">' + titleLines[0] + '</div>';
+          innerHtml += '<div class="tooltip-value">' + bodyLines[0] + '</div>';
+          tooltipEl.innerHTML = innerHtml;
+        }
+
+        const position = context.chart.canvas.getBoundingClientRect();
+        tooltipEl.style.opacity = 1;
+        tooltipEl.style.left = tooltipModel.caretX + 'px';
+        tooltipEl.style.top = tooltipModel.caretY - 10 + 'px';
+      };
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['2020', '2021', '2022', '2023', '2024', '2025', '2026'],
+          datasets: [{
+            label: 'Publications',
+            data: [120, 150, 180, 220, 310, 480, 620],
+            borderColor: '#141413',
+            borderWidth: 1.5,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.3, 
+            pointBackgroundColor: '#141413',
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: '#fdfcf8',
+            pointHoverBorderColor: '#141413',
+            pointHoverBorderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: { display: false }, 
+            tooltip: {
+              enabled: false, 
+              external: customTooltip
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false, drawBorder: false },
+              ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#74736f' }
+            },
+            y: {
+              grid: { display: false, drawBorder: false }, 
+              ticks: { display: false } 
+            }
+          }
+        }
+      });
+    }
+
+    // 5. Advanced 3D Globe with Particles and Glow
+    function init3DGlobe() {
+      const canvas = document.getElementById('knowledgeGlobe3D');
+      const container = canvas.parentElement;
+      const ctx = canvas.getContext('2d');
+      
+      let width = container.clientWidth;
+      let height = container.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.scale(dpr, dpr);
+      
+      const nodes = [];
+      const numNodes = 72; 
+      const radius = 120;
+      const focalLength = 280;
+      
+      // Node initialization
+      for (let i = 0; i < numNodes; i++) {
+        const theta = Math.acos((Math.random() * 2) - 1);
+        const phi = Math.random() * 2 * Math.PI;
+        nodes.push({
+          initialX: radius * Math.sin(theta) * Math.cos(phi),
+          initialY: radius * Math.sin(theta) * Math.sin(phi),
+          initialZ: radius * Math.cos(theta)
+        });
+      }
+
+      // Particles (Dust) initialization
+      const particles = [];
+      for(let i=0; i< 40; i++) {
+        particles.push({
+          x: (Math.random() - 0.5) * width * 1.5,
+          y: (Math.random() - 0.5) * height * 1.5,
+          z: (Math.random() - 0.5) * 400,
+          speed: Math.random() * 0.02 + 0.005
+        });
+      }
+      
+      let rotationX = 0;
+      let rotationY = 0;
+      let speedX = 0.001;
+      let speedY = 0.002;
+      let targetSpeedX = 0.001;
+      let targetSpeedY = 0.002;
+      
+      let isDragging = false;
+      let prevMouse = { x: 0, y: 0 };
+      
+      container.addEventListener('mousemove', (e) => {
+        if (!isDragging) {
+          const rect = container.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
+          targetSpeedY = ((mx - width/2) / (width/2)) * 0.01;
+          targetSpeedX = -((my - height/2) / (height/2)) * 0.01;
+        } else {
+          const dx = e.clientX - prevMouse.x;
+          const dy = e.clientY - prevMouse.y;
+          rotationY += dx * 0.005;
+          rotationX += dy * 0.005;
+          prevMouse = { x: e.clientX, y: e.clientY };
+        }
+      });
+      
+      container.addEventListener('mouseleave', () => {
+        targetSpeedX = 0.001;
+        targetSpeedY = 0.002;
+      });
+
+      container.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        prevMouse = { x: e.clientX, y: e.clientY };
+      });
+      
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+      
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        
+        if (!isDragging) {
+          speedX += (targetSpeedX - speedX) * 0.05;
+          speedY += (targetSpeedY - speedY) * 0.05;
+          rotationX += speedX;
+          rotationY += speedY;
+        }
+        
+        const cosX = Math.cos(rotationX);
+        const sinX = Math.sin(rotationX);
+        const cosY = Math.cos(rotationY);
+        const sinY = Math.sin(rotationY);
+        
+        // Draw Particles
+        ctx.fillStyle = 'rgba(20, 20, 19, 0.15)';
+        particles.forEach(p => {
+          p.y -= p.speed; 
+          if(p.y < -height) p.y = height;
+          
+          let pScale = focalLength / (p.z + focalLength + 200);
+          if (pScale > 0) {
+            let px = p.x * pScale + width / 2;
+            let py = p.y * pScale + height / 2;
+            ctx.beginPath();
+            ctx.arc(px, py, pScale * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+
+        const projected = [];
+        nodes.forEach((node) => {
+          let x1 = node.initialX * cosY - node.initialZ * sinY;
+          let z1 = node.initialX * sinY + node.initialZ * cosY;
+          let y2 = node.initialY * cosX - z1 * sinX;
+          let z2 = node.initialY * sinX + z1 * cosX;
+          
+          const scale = focalLength / (z2 + focalLength + 20);
+          const sx = x1 * scale + width / 2;
+          const sy = y2 * scale + height / 2;
+          projected.push({ sx, sy, z: z2, scale });
+        });
+        
+        // Draw Edges with extreme thinness
+        ctx.strokeStyle = 'rgba(20, 20, 19, 0.04)';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i < projected.length; i++) {
+          for (let j = i + 1; j < projected.length; j++) {
+            const dx = projected[i].sx - projected[j].sx;
+            const dy = projected[i].sy - projected[j].sy;
+            if (dx*dx + dy*dy < 2500) { 
+              ctx.beginPath();
+              ctx.moveTo(projected[i].sx, projected[i].sy);
+              ctx.lineTo(projected[j].sx, projected[j].sy);
+              ctx.stroke();
+            }
+          }
+        }
+        
+        // Draw Nodes with Shadow Glow
+        ctx.shadowColor = 'rgba(20, 20, 19, 0.2)';
+        ctx.shadowBlur = 6;
+        
+        projected.forEach((p) => {
+          const alpha = (p.z + radius) / (2 * radius) * 0.7 + 0.3;
+          ctx.fillStyle = `rgba(20, 20, 19, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, p.scale * 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        
+        ctx.shadowBlur = 0;
+
+        requestAnimationFrame(draw);
+      }
+      
+      draw();
+      
+      window.addEventListener('resize', () => {
+        width = container.clientWidth;
+        height = container.clientHeight;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initChart();
+      init3DGlobe();
+    });
+  </script>
+</body>
+</html>
