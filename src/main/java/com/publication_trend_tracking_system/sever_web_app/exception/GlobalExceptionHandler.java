@@ -19,6 +19,15 @@ public class GlobalExceptionHandler {
 
     private static final String MIN_ATTRIBUTE = "min";
 
+    @ExceptionHandler(value = {
+        org.apache.catalina.connector.ClientAbortException.class,
+        org.springframework.web.context.request.async.AsyncRequestNotUsableException.class
+    })
+    public void handleClientAbortException(Exception exception) {
+        log.warn("Client aborted connection or request was no longer usable: {} - {}", 
+                 exception.getClass().getSimpleName(), exception.getMessage());
+    }
+
     @ExceptionHandler(value = Exception.class)
     ResponseEntity<ApiResponse<Void>> handlingRuntimeException(Exception exception) {
 

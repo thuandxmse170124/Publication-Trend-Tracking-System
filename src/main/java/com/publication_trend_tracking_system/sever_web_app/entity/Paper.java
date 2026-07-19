@@ -42,10 +42,11 @@ public class Paper {
     @Column(name = "publication_type", nullable = false)
     private PaperPublicationType publicationType;
 
-    @Column(name = "title", nullable = false)
+    @org.hibernate.annotations.Nationalized
+    @Column(name = "title", nullable = false, length = 500)
     private String title;
 
-    @Column(name = "abstract", columnDefinition = "VARCHAR(MAX)")
+    @Column(name = "abstract", columnDefinition = "NVARCHAR(MAX)")
     private String paperAbstract;
 
     @Column(name = "publication_year")

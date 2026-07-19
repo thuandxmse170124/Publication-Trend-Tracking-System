@@ -27,5 +27,6 @@ public class PremiumResponse {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
-    
+
+    private DiscountResponse discount;
 }

@@ -107,7 +107,7 @@ public class PaperServiceImpl implements PaperService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Page<PaperResponse> searchPapers(
             String keyword,
             String author,

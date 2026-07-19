@@ -700,6 +700,7 @@ public class CitationGraphServiceImpl implements CitationGraphService {
     private List<CitationPaperNodeResponse> getReferencesByOpenAlexId(String openAlexId) {
         JsonNode work = openAlexClient.getWorkByOpenAlexId(openAlexId);
         List<CitationPaperNodeResponse> result = new ArrayList<>();
+        if (work == null) return result;
         JsonNode references = work.path("referenced_works");
         if (!references.isArray()) return result;
 
@@ -713,6 +714,7 @@ public class CitationGraphServiceImpl implements CitationGraphService {
     private List<CitationPaperNodeResponse> getCitedByOpenAlexId(String openAlexId) {
         JsonNode response = openAlexClient.getCitedBy(openAlexId);
         List<CitationPaperNodeResponse> result = new ArrayList<>();
+        if (response == null) return result;
         JsonNode works = response.path("results");
         if (!works.isArray()) return result;
 

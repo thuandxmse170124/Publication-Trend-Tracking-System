@@ -104,6 +104,8 @@ public class AdminDiscountServiceImpl
                 request.getToDate()
         );
 
+        discount.setIsActive(true); // <--- Reactivate the discount when it is updated/edited
+
         discount =
                 discountRepository.save(discount);
 

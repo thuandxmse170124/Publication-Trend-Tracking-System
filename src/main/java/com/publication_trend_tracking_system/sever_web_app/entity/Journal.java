@@ -19,12 +19,14 @@ public class Journal {
     @Column(name = "journal_id")
     private Integer journalId;
 
+    @org.hibernate.annotations.Nationalized
     @Column(name = "name", nullable = false)
     private String name;
 
     @Column(name = "issn")
     private String issn;
 
+    @org.hibernate.annotations.Nationalized
     @Column(name = "publisher")
     private String publisher;
 

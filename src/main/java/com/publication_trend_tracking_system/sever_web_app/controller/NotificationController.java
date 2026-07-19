@@ -2,12 +2,14 @@ package com.publication_trend_tracking_system.sever_web_app.controller;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiResponse;
 import com.publication_trend_tracking_system.sever_web_app.service.NotificationService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/notifications")
+@RequestMapping("/api/member/notifications")
+@SecurityRequirement(name = "api")
 @RequiredArgsConstructor
 public class NotificationController {
 

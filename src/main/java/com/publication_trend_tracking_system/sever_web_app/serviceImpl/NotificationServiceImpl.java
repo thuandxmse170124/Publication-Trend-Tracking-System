@@ -68,6 +68,8 @@ public class NotificationServiceImpl
                                         notification.getIsRead())
                                 .createdAt(
                                         notification.getCreatedAt())
+                                .relatedId(
+                                        notification.getRelatedId())
                                 .build())
                 .toList();
     }
@@ -140,6 +142,8 @@ public class NotificationServiceImpl
                                         notification.getIsRead())
                                 .createdAt(
                                         notification.getCreatedAt())
+                                .relatedId(
+                                        notification.getRelatedId())
                                 .build())
                 .toList();
     }
@@ -257,6 +261,8 @@ public class NotificationServiceImpl
                                                     + paper.getTitle())
                                     .user(
                                             follow.getUser())
+                                    .relatedId(
+                                            paper.getPaperId())
                                     .build());
 
                     notifiedUsers.add(
@@ -292,6 +298,8 @@ public class NotificationServiceImpl
                                                     + paper.getTitle())
                                     .user(
                                             follow.getUser())
+                                    .relatedId(
+                                            paper.getPaperId())
                                     .build());
 
                     notifiedUsers.add(
@@ -328,6 +336,8 @@ public class NotificationServiceImpl
                                                     + paper.getTitle())
                                     .user(
                                             follow.getUser())
+                                    .relatedId(
+                                            paper.getPaperId())
                                     .build());
 
                     notifiedUsers.add(
