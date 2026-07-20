@@ -301,6 +301,10 @@ public enum ErrorCode {
             2002,
             "Sync job not found",
             HttpStatus.NOT_FOUND),
+    SYNC_JOB_ALREADY_RUNNING(
+            2004,
+            "A sync job for this source is already running",
+            HttpStatus.BAD_REQUEST),
     PREMIUM_ALREADY_USED(
             3018,
             "Premium package has already been used",

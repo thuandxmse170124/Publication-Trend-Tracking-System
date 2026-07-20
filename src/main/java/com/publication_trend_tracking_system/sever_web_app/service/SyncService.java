@@ -9,4 +9,5 @@ public interface SyncService {
     Page<SyncJobResponse> getSyncLogs(int page, int size);
     SyncJobResponse retrySyncJob(Long jobId, Long userId);
     SyncJobResponse syncAll(Integer sourceId, Long userId, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange);
+    void stopSyncJob(Long jobId);
 }

@@ -103,4 +103,13 @@ public class AdminSyncController {
                 .result(result)
                 .build();
     }
+
+    @PostMapping("/jobs/{jobId}/stop")
+    public ApiResponse<Void> stopSyncJob(@PathVariable Long jobId) {
+        syncService.stopSyncJob(jobId);
+        return ApiResponse.<Void>builder()
+                .code(1000)
+                .message("Stop signal sent to sync job")
+                .build();
+    }
 }
