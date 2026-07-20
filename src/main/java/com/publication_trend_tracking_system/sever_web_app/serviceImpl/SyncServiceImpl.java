@@ -61,6 +61,15 @@ public class SyncServiceImpl implements SyncService {
     private final ResearchFieldRepository researchFieldRepository;
     private final org.springframework.context.ApplicationContext applicationContext;
     private final NotificationService notificationService;
+    private final java.util.concurrent.ConcurrentHashMap<Long, Boolean> stopFlags = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Override
+    public void stopSyncJob(Long jobId) {
+        SyncJob job = syncJobRepository.findById(jobId).orElseThrow(() -> new AppException(ErrorCode.SYNC_JOB_NOT_FOUND));
+        if ("RUNNING".equalsIgnoreCase(job.getStatus())) {
+            stopFlags.put(jobId, true);
+        }
+    }
 
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
@@ -82,6 +91,10 @@ public class SyncServiceImpl implements SyncService {
 
         if (!"ACTIVE".equalsIgnoreCase(source.getStatus())) {
             throw new AppException(ErrorCode.API_SOURCE_INACTIVE);
+        }
+
+        if (syncJobRepository.existsByApiSource_SourceIdAndStatus(sourceId, "RUNNING")) {
+            throw new AppException(ErrorCode.SYNC_JOB_ALREADY_RUNNING);
         }
 
         User user = null;
@@ -164,6 +177,16 @@ public class SyncServiceImpl implements SyncService {
                 log.info("Starting sync from {} for query: {}", source.getSourceName(), query);
                 int page = 1;
                 while (true) {
+                    if (stopFlags.getOrDefault(jobId, false)) {
+                        log.warn("Sync job {} was manually stopped.", jobId);
+                        job.setStatus("CANCELED");
+                        job.setFinishedAt(LocalDateTime.now());
+                        job.setErrorMessage("Manually stopped by Admin");
+                        syncJobRepository.save(job);
+                        stopFlags.remove(jobId);
+                        return;
+                    }
+
                     String url = buildApiUrl(source, query, page, cutoffDate);
                     String responseBody = fetchFromApi(url);
 
@@ -350,9 +373,14 @@ public class SyncServiceImpl implements SyncService {
                 JsonNode concepts = work.path("concepts");
                 if (concepts.isArray()) {
                     for (JsonNode concept : concepts) {
-                        if (concept.path("level").asInt(99) <= 1) {
-                            String conceptName = concept.path("display_name").asText(null);
-                            if (conceptName != null && !conceptName.isBlank()) dto.topicNames.add(conceptName.trim());
+                        int level = concept.path("level").asInt(99);
+                        String conceptName = concept.path("display_name").asText(null);
+                        if (conceptName != null && !conceptName.isBlank()) {
+                            if (level <= 1) {
+                                dto.topicNames.add(conceptName.trim());
+                            } else {
+                                dto.keywordNames.add(conceptName.trim());
+                            }
                         }
                     }
                 }

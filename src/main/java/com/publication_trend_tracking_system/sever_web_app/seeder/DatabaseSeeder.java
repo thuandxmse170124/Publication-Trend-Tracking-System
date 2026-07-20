@@ -66,6 +66,14 @@ public class DatabaseSeeder implements CommandLineRunner {
             userRepository.save(adminUser);
         }
 
+        // Force reset password for testing
+        User existingAdmin = userRepository.findByEmail("admin@gmail.com").orElse(null);
+        if (existingAdmin != null) {
+            existingAdmin.setPasswordHash(passwordEncoder.encode("123456Aa@"));
+            userRepository.save(existingAdmin);
+            log.info("Successfully forced password reset for admin@gmail.com to 123456Aa@");
+        }
+
         // 3. Seed API Source (OpenAlex)
         if (apiSourceRepository.count() == 0) {
             log.info("Seeding OpenAlex API Source...");
@@ -76,27 +84,8 @@ public class DatabaseSeeder implements CommandLineRunner {
             apiSourceRepository.save(openAlex);
         }
 
-        // 4. Start Massive Sync if DB has no papers
-        if (paperRepository.count() < 10000) {
-            log.info("No papers found in DB. Triggering massive data load from OpenAlex (Background Thread)...");
-            apiSourceRepository.findAll().stream()
-                    .filter(source -> "ACTIVE".equalsIgnoreCase(source.getStatus()) && "OpenAlex".equalsIgnoreCase(source.getSourceName()))
-                    .findFirst()
-                    .ifPresent(source -> {
-                        // Run sync asynchronously so it doesn't block Spring Boot startup
-                        CompletableFuture.runAsync(() -> {
-                            try {
-                                log.info("STARTING MASSIVE PRE-LOAD DATA for source: {}", source.getSourceName());
-                                syncService.syncFromSource(source.getSourceId(), null, null, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange.ALL);
-                                log.info("MASSIVE PRE-LOAD DATA COMPLETED for source: {}", source.getSourceName());
-                            } catch (Exception e) {
-                                log.error("Error during massive pre-load data: ", e);
-                            }
-                        });
-                    });
-        } else {
-            log.info("Database already contains papers. Skipping massive pre-load.");
-        }
+        // 4. (Removed Massive Sync logic)
+
 
         log.info("Database seed checks completed.");
     }
