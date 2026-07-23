@@ -21,4 +21,6 @@ public interface FollowAuthorRepository
 
     List<FollowAuthor> findByAuthorAuthorId(
             Long authorId);
+
+    List<FollowAuthor> findByAuthorAuthorIdIn(java.util.Collection<Long> authorIds);
 }

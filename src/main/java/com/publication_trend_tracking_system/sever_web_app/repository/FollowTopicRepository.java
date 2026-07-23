@@ -21,4 +21,6 @@ public interface FollowTopicRepository
 
     List<FollowTopic> findByTopicTopicId(
             Integer topicId);
+
+    List<FollowTopic> findByTopicTopicIdIn(java.util.Collection<Integer> topicIds);
 }

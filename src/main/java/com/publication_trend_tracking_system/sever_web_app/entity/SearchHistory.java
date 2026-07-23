@@ -16,7 +16,7 @@ public class SearchHistory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "history_id")
+    @Column(name = "search_id")
     private Long historyId;
 
     @ManyToOne(fetch = FetchType.LAZY)

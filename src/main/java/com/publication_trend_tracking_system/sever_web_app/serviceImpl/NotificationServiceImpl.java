@@ -228,122 +228,92 @@ public class NotificationServiceImpl
                 "Processing {} new papers",
                 newPapers.size());
 
+        Set<Integer> allTopicIds = new HashSet<>();
+        Set<Long> allAuthorIds = new HashSet<>();
+        Set<Integer> allJournalIds = new HashSet<>();
+
         for (Paper paper : newPapers) {
-
-            Set<Long> notifiedUsers =
-                    new HashSet<>();
-
-            // Topics
-            for (Topic topic : paper.getTopics()) {
-
-                List<FollowTopic> follows =
-                        followTopicRepository
-                                .findByTopicTopicId(
-                                        topic.getTopicId());
-
-                for (FollowTopic follow : follows) {
-
-                    Long userId =
-                            follow.getUser()
-                                    .getUserId();
-
-                    if (notifiedUsers.contains(
-                            userId)) {
-                        continue;
-                    }
-
-                    notificationRepository.save(
-                            Notification.builder()
-                                    .title(
-                                            "New Paper Available")
-                                    .message(
-                                            "New paper: "
-                                                    + paper.getTitle())
-                                    .user(
-                                            follow.getUser())
-                                    .relatedId(
-                                            paper.getPaperId())
-                                    .build());
-
-                    notifiedUsers.add(
-                            userId);
-                }
+            if (paper.getTopics() != null) {
+                for (Topic t : paper.getTopics()) allTopicIds.add(t.getTopicId());
             }
-
-            // Authors
-            for (Author author : paper.getAuthors()) {
-
-                List<FollowAuthor> follows =
-                        followAuthorRepository
-                                .findByAuthorAuthorId(
-                                        author.getAuthorId());
-
-                for (FollowAuthor follow : follows) {
-
-                    Long userId =
-                            follow.getUser()
-                                    .getUserId();
-
-                    if (notifiedUsers.contains(
-                            userId)) {
-                        continue;
-                    }
-
-                    notificationRepository.save(
-                            Notification.builder()
-                                    .title(
-                                            "New Paper Available")
-                                    .message(
-                                            "New paper: "
-                                                    + paper.getTitle())
-                                    .user(
-                                            follow.getUser())
-                                    .relatedId(
-                                            paper.getPaperId())
-                                    .build());
-
-                    notifiedUsers.add(
-                            userId);
-                }
+            if (paper.getAuthors() != null) {
+                for (Author a : paper.getAuthors()) allAuthorIds.add(a.getAuthorId());
             }
-
-            // Journal
             if (paper.getJournal() != null) {
+                allJournalIds.add(paper.getJournal().getJournalId());
+            }
+        }
 
-                List<FollowJournal> follows =
-                        followJournalRepository
-                                .findByJournalJournalId(
-                                        paper.getJournal()
-                                                .getJournalId());
+        java.util.Map<Integer, List<FollowTopic>> topicFollowers = allTopicIds.isEmpty() ? java.util.Collections.emptyMap() : 
+            followTopicRepository.findByTopicTopicIdIn(allTopicIds).stream()
+            .collect(java.util.stream.Collectors.groupingBy(f -> f.getTopic().getTopicId()));
 
-                for (FollowJournal follow : follows) {
+        java.util.Map<Long, List<FollowAuthor>> authorFollowers = allAuthorIds.isEmpty() ? java.util.Collections.emptyMap() :
+            followAuthorRepository.findByAuthorAuthorIdIn(allAuthorIds).stream()
+            .collect(java.util.stream.Collectors.groupingBy(f -> f.getAuthor().getAuthorId()));
 
-                    Long userId =
-                            follow.getUser()
-                                    .getUserId();
+        java.util.Map<Integer, List<FollowJournal>> journalFollowers = allJournalIds.isEmpty() ? java.util.Collections.emptyMap() :
+            followJournalRepository.findByJournalJournalIdIn(allJournalIds).stream()
+            .collect(java.util.stream.Collectors.groupingBy(f -> f.getJournal().getJournalId()));
 
-                    if (notifiedUsers.contains(
-                            userId)) {
-                        continue;
-                    }
+        List<Notification> notificationsToSave = new java.util.ArrayList<>();
 
-                    notificationRepository.save(
-                            Notification.builder()
-                                    .title(
-                                            "New Paper Available")
-                                    .message(
-                                            "New paper: "
-                                                    + paper.getTitle())
-                                    .user(
-                                            follow.getUser())
-                                    .relatedId(
-                                            paper.getPaperId())
+        for (Paper paper : newPapers) {
+            Set<Long> notifiedUsers = new HashSet<>();
+
+            if (paper.getTopics() != null) {
+                for (Topic topic : paper.getTopics()) {
+                    List<FollowTopic> follows = topicFollowers.getOrDefault(topic.getTopicId(), java.util.Collections.emptyList());
+                    for (FollowTopic follow : follows) {
+                        Long userId = follow.getUser().getUserId();
+                        if (notifiedUsers.add(userId)) {
+                            notificationsToSave.add(Notification.builder()
+                                    .title("New Paper Available")
+                                    .message("New paper: " + paper.getTitle())
+                                    .user(follow.getUser())
+                                    .relatedId(paper.getPaperId())
                                     .build());
-
-                    notifiedUsers.add(
-                            userId);
+                        }
+                    }
                 }
             }
+
+            if (paper.getAuthors() != null) {
+                for (Author author : paper.getAuthors()) {
+                    List<FollowAuthor> follows = authorFollowers.getOrDefault(author.getAuthorId(), java.util.Collections.emptyList());
+                    for (FollowAuthor follow : follows) {
+                        Long userId = follow.getUser().getUserId();
+                        if (notifiedUsers.add(userId)) {
+                            notificationsToSave.add(Notification.builder()
+                                    .title("New Paper Available")
+                                    .message("New paper: " + paper.getTitle())
+                                    .user(follow.getUser())
+                                    .relatedId(paper.getPaperId())
+                                    .build());
+                        }
+                    }
+                }
+            }
+
+            if (paper.getJournal() != null) {
+                List<FollowJournal> follows = journalFollowers.getOrDefault(paper.getJournal().getJournalId(), java.util.Collections.emptyList());
+                for (FollowJournal follow : follows) {
+                    Long userId = follow.getUser().getUserId();
+                    if (notifiedUsers.add(userId)) {
+                        notificationsToSave.add(Notification.builder()
+                                .title("New Paper Available")
+                                .message("New paper: " + paper.getTitle())
+                                .user(follow.getUser())
+                                .relatedId(paper.getPaperId())
+                                .build());
+                    }
+                }
+            }
+        }
+
+        if (!notificationsToSave.isEmpty()) {
+            notificationRepository.saveAll(notificationsToSave);
+            log.info("Saved {} notifications in bulk", notificationsToSave.size());
         }
     }
 

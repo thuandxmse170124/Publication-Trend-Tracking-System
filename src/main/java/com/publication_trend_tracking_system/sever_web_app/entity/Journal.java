@@ -19,14 +19,15 @@ public class Journal {
     @Column(name = "journal_id")
     private Integer journalId;
 
-    @org.hibernate.annotations.Nationalized
+    // Not @Nationalized: the actual DB column is varchar, not nvarchar. Hibernate binding this
+    // as NCHAR against a varchar column made the SQL Server driver reject every read with
+    // "The conversion from varchar to NCHAR is unsupported", failing every journal lookup.
     @Column(name = "name", nullable = false)
     private String name;
 
     @Column(name = "issn")
     private String issn;
 
-    @org.hibernate.annotations.Nationalized
     @Column(name = "publisher")
     private String publisher;
 

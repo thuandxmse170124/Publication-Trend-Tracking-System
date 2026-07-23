@@ -19,11 +19,11 @@ public class Author {
     @Column(name = "author_id")
     private Long authorId;
 
-    @org.hibernate.annotations.Nationalized
+    // Not @Nationalized: the actual DB column is varchar, not nvarchar (same issue as
+    // Journal.name — see comment there).
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @org.hibernate.annotations.Nationalized
     @Column(name = "affiliation")
     private String affiliation;
 

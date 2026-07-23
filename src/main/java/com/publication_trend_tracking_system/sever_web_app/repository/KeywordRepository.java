@@ -16,18 +16,19 @@ public interface KeywordRepository extends JpaRepository<Keyword, Integer> {
     java.util.List<Object[]> findTop50KeywordNamesWithCount(@org.springframework.data.repository.query.Param("search") String search);
 
 
-    @org.springframework.data.jpa.repository.Query(value = "SELECT TOP 50 k.keyword_name, SUM(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1)) AS TrendScore " +
-                                                           "FROM keywords k JOIN paper_keywords pk ON k.keyword_id = pk.keyword_id JOIN papers p ON pk.paper_id = p.paper_id " +
-                                                           "GROUP BY k.keyword_name ORDER BY TrendScore DESC", nativeQuery = true)
+    // Time Decay: Boost recent trends
+    @org.springframework.data.jpa.repository.Query(value = "SELECT TOP 50 k.keyword_name, SUM(CAST(p.citation_count + 1 AS FLOAT) / (ABS(YEAR(GETDATE()) - p.publication_year) + 1)) AS TrendScore " +
+            "FROM keywords k JOIN paper_keywords pk ON k.keyword_id = pk.keyword_id " +
+            "JOIN papers p ON pk.paper_id = p.paper_id WHERE p.publication_year IS NOT NULL GROUP BY k.keyword_name ORDER BY TrendScore DESC", nativeQuery = true)
     java.util.List<Object[]> findTop50TrendingKeywordNamesWithCount();
 
-    @org.springframework.data.jpa.repository.Query(value = "SELECT TOP 50 k.keyword_name, SUM(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1)) AS TrendScore " +
-                                                           "FROM keywords k JOIN paper_keywords pk ON k.keyword_id = pk.keyword_id JOIN papers p ON pk.paper_id = p.paper_id " +
-                                                           "WHERE p.field_id = :fieldId " +
-                                                           "GROUP BY k.keyword_name ORDER BY TrendScore DESC", nativeQuery = true)
+    @org.springframework.data.jpa.repository.Query(value = "SELECT TOP 50 k.keyword_name, SUM(CAST(p.citation_count + 1 AS FLOAT) / (ABS(YEAR(GETDATE()) - p.publication_year) + 1)) AS TrendScore " +
+            "FROM keywords k JOIN paper_keywords pk ON k.keyword_id = pk.keyword_id JOIN papers p ON pk.paper_id = p.paper_id " +
+            "WHERE p.field_id = :fieldId " +
+            "GROUP BY k.keyword_name ORDER BY TrendScore DESC", nativeQuery = true)
     java.util.List<Object[]> findTop50PersonalizedTrendingKeywordNamesWithCount(@org.springframework.data.repository.query.Param("fieldId") Integer fieldId);
 
-    @org.springframework.data.jpa.repository.Query(value = "SELECT TOP 10 k.keyword_name, SUM(CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1)) AS TrendScore " +
+    @org.springframework.data.jpa.repository.Query(value = "SELECT TOP 10 k.keyword_name, SUM(CAST(p.citation_count + 1 AS FLOAT) / (ABS(YEAR(GETDATE()) - p.publication_year) + 1)) AS TrendScore " +
                                                            "FROM keywords k JOIN paper_keywords pk ON k.keyword_id = pk.keyword_id JOIN papers p ON pk.paper_id = p.paper_id " +
                                                            "WHERE LOWER(k.keyword_name) LIKE LOWER(:prefix + '%') " +
                                                            "GROUP BY k.keyword_name ORDER BY TrendScore DESC", nativeQuery = true)

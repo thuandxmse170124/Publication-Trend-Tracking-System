@@ -41,6 +41,16 @@ public class SyncJob {
     @Column(name = "error_message")
     private String errorMessage;
 
+    // Populated only for structured OpenAlex "Sync All" runs (Implementation Plan v3), so the
+    // frontend can show "processed / total official topics" progress. Null for custom-query and
+    // Semantic Scholar jobs, which don't iterate the official topic taxonomy.
+    @Column(name = "total_topics_count")
+    private Integer totalTopicsCount;
+
+    @Builder.Default
+    @Column(name = "processed_topics_count")
+    private Integer processedTopicsCount = 0;
+
     @Builder.Default
     @Column(name = "started_at", nullable = false)
     private LocalDateTime startedAt = LocalDateTime.now();

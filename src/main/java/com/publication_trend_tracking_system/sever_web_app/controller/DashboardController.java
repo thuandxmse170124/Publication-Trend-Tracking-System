@@ -64,4 +64,20 @@ public class DashboardController {
                                 .getTopicTrends())
                 .build();
     }
+
+    // Public trend view for the Trend Analytics page: unlike /topic-trends above, not
+    // premium-gated and not limited to the current user's followed topics.
+    @GetMapping("/all-topic-trends")
+    public ApiResponse<List<TopicTrendResponse>>
+    getAllTopicTrends() {
+
+        return ApiResponse
+                .<List<TopicTrendResponse>>builder()
+                .code(1000)
+                .message("Success")
+                .result(
+                        dashboardService
+                                .getAllTopicTrends())
+                .build();
+    }
 }

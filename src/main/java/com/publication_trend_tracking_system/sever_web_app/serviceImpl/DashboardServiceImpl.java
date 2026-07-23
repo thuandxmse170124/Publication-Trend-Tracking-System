@@ -161,36 +161,9 @@ public class DashboardServiceImpl implements DashboardService {
         List<TopicTrendResponse> topicTrends =
                 getTopicTrends();
 
-        Set<Long> bookmarkedPaperIds =
-                bookmarkPaperRepository
-                        .findByUserUserId(user.getUserId())
-                        .stream()
-                        .map(BookmarkPaper::getPaperId)
-                        .collect(Collectors.toSet());
-
-        List<Paper> candidatePapers =
-                new ArrayList<>(
-                        follows.stream()
-                                .flatMap(follow ->
-                                        paperRepository
-                                                .findByTopics_TopicId(
-                                                        follow.getTopic().getTopicId())
-                                                .stream())
-                                .filter(paper ->
-                                        !bookmarkedPaperIds.contains(
-                                                paper.getPaperId()))
-                                .collect(Collectors.toMap(
-                                        Paper::getPaperId,
-                                        paper -> paper,
-                                        (first, second) -> first
-                                ))
-                                .values()
-                );
-
-        Collections.shuffle(candidatePapers);
-
         List<PaperResponse> recentPapers =
-                candidatePapers.stream()
+                paperRepository.findRandomRecommendedPapersForUser(user.getUserId())
+                        .stream()
                         .limit(10)
                         .map(paper ->
                                 PaperResponse.builder()
@@ -218,25 +191,28 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     private TopicTrendResponse calculateTrend(Topic topic) {
-
-        Integer topicId = topic.getTopicId();
-
         LocalDateTime now = LocalDateTime.now();
-
         LocalDateTime currentStart = now.minusDays(30);
         LocalDateTime previousStart = now.minusDays(60);
 
         long currentCount =
                 paperRepository.countTopicPapersBetween(
-                        topicId,
+                        topic.getTopicId(),
                         currentStart,
                         now);
 
         long previousCount =
                 paperRepository.countTopicPapersBetween(
-                        topicId,
+                        topic.getTopicId(),
                         previousStart,
                         currentStart);
+
+        return calculateTrend(topic, currentCount, previousCount);
+    }
+
+    private TopicTrendResponse calculateTrend(Topic topic, long currentCount, long previousCount) {
+
+        Integer topicId = topic.getTopicId();
 
         Double growthRate = null;
         Double trendScore = null;
@@ -288,13 +264,40 @@ public class DashboardServiceImpl implements DashboardService {
                 .build();
     }
 
+    // Public trend view (Trend Analytics page): unlike getTopicTrends() above, this is not
+    // premium-gated and is not limited to the current user's followed topics. Iterates only
+    // topics that have at least one paper (getTopicTrendCounts INNER JOINs paper_topics), instead
+    // of topicRepository.findAll() — with the full 4,516-topic official taxonomy now seeded,
+    // findAll() would return thousands of all-zero rows that are pure noise on this page.
+    private static final int ALL_TOPIC_TRENDS_LIMIT = 30;
+
     @Override
     @Transactional(readOnly = true)
     public List<TopicTrendResponse> getAllTopicTrends() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime currentStart = now.minusDays(30);
+        LocalDateTime previousStart = now.minusDays(60);
 
-        return topicRepository.findAll()
-                .stream()
-                .map(this::calculateTrend)
+        List<Object[]> counts = paperRepository.getTopicTrendCounts(previousStart, currentStart, now);
+        java.util.Map<Integer, long[]> countMap = counts.stream().collect(Collectors.toMap(
+            row -> ((Number) row[0]).intValue(),
+            row -> new long[]{((Number) row[1]).longValue(), ((Number) row[2]).longValue()}
+        ));
+
+        List<Integer> topicIds = new ArrayList<>(countMap.keySet());
+        java.util.Map<Integer, Topic> topicsById = topicRepository.findAllById(topicIds).stream()
+                .collect(Collectors.toMap(Topic::getTopicId, t -> t));
+
+        return countMap.entrySet().stream()
+                .filter(entry -> topicsById.containsKey(entry.getKey()))
+                .map(entry -> {
+                    long[] topicCounts = entry.getValue();
+                    return calculateTrend(topicsById.get(entry.getKey()), topicCounts[0], topicCounts[1]);
+                })
+                .sorted((a, b) -> Long.compare(
+                        b.getCurrentPaperCount() + b.getPreviousPaperCount(),
+                        a.getCurrentPaperCount() + a.getPreviousPaperCount()))
+                .limit(ALL_TOPIC_TRENDS_LIMIT)
                 .toList();
     }
 
