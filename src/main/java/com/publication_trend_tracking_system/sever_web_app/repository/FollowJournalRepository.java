@@ -21,4 +21,6 @@ public interface FollowJournalRepository
 
     List<FollowJournal> findByJournalJournalId(
             Integer journalId);
+
+    List<FollowJournal> findByJournalJournalIdIn(java.util.Collection<Integer> journalIds);
 }

@@ -19,6 +19,10 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     java.util.Optional<Paper> findFirstByDoiIgnoreCase(String doi);
 
+    // Papers touched by a given sync job (Implementation Plan v3: job detail view).
+    // Reflects only the most recent sync per paper, not full history.
+    Page<Paper> findByLastSyncJobIdOrderByUpdatedAtDesc(Long lastSyncJobId, Pageable pageable);
+
     java.util.Optional<Paper> findByDoiIgnoreCase(String doi);
     List<Paper> findAllByDoiInIgnoreCase(java.util.Set<String> dois);
     List<Paper> findAllByTitleInIgnoreCase(java.util.Set<String> titles);
@@ -31,11 +35,29 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     List<Paper> findTop10ByTopics_TopicIdOrderByCreatedAtDesc(Integer topicId);
     List<Paper> findByTopics_TopicId(Integer topicId);
 
+    @Query(value = "SELECT TOP 10 p.* FROM papers p " +
+                   "JOIN paper_topics pt ON p.paper_id = pt.paper_id " +
+                   "JOIN follow_topics ft ON pt.topic_id = ft.topic_id " +
+                   "WHERE ft.user_id = :userId " +
+                   "AND p.paper_id NOT IN (SELECT bp.paper_id FROM bookmark_papers bp WHERE bp.user_id = :userId) " +
+                   "ORDER BY NEWID()", nativeQuery = true)
+    List<Paper> findRandomRecommendedPapersForUser(@Param("userId") Long userId);
+
     @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()) + 1, 0)", nativeQuery = true)
     long countPapersThisMonth();
 
     @Query(value = "SELECT COUNT(*) FROM papers WHERE created_at >= DATEADD(month, DATEDIFF(month, 0, GETDATE()) - 1, 0) AND created_at < DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0)", nativeQuery = true)
     long countPapersLastMonth();
+
+    @Query(value = "SELECT pt.topic_id, " +
+                   "SUM(CASE WHEN p.created_at BETWEEN :currentStart AND :now THEN 1 ELSE 0 END), " +
+                   "SUM(CASE WHEN p.created_at BETWEEN :previousStart AND :currentStart THEN 1 ELSE 0 END) " +
+                   "FROM papers p JOIN paper_topics pt ON p.paper_id = pt.paper_id " +
+                   "GROUP BY pt.topic_id", nativeQuery = true)
+    List<Object[]> getTopicTrendCounts(@Param("previousStart") LocalDateTime previousStart, 
+                                       @Param("currentStart") LocalDateTime currentStart, 
+                                       @Param("now") LocalDateTime now);
+
     @Query("SELECT new com.publication_trend_tracking_system.sever_web_app.dto.response.YearCountResponse(p.publicationYear, COUNT(DISTINCT p)) " +
            "FROM Paper p " +
            "LEFT JOIN p.authors a " +
@@ -84,6 +106,7 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     java.util.List<com.publication_trend_tracking_system.sever_web_app.dto.response.TopJournalResponse> findTopJournalsByPaperCount(@Param("fieldId") Integer fieldId, org.springframework.data.domain.Pageable pageable);
 
 
+    // Fix JPA count bug with DISTINCT
     @Query(value = "SELECT DISTINCT p FROM Paper p " +
              "LEFT JOIN p.authors a " +
              "LEFT JOIN p.journal j " +
@@ -130,7 +153,8 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     @Query(value = "SELECT TOP 5 p.* FROM papers p " +
                    "JOIN paper_topics pt ON p.paper_id = pt.paper_id " +
                    "WHERE pt.topic_id = :topicId AND p.paper_id != :paperId " +
-                   "ORDER BY (CAST(p.citation_count + 1 AS FLOAT) / (YEAR(GETDATE()) - p.publication_year + 1)) DESC", nativeQuery = true)
+                   "AND p.publication_year IS NOT NULL AND p.publication_year > 0 " +
+                   "ORDER BY (CAST(p.citation_count + 1 AS FLOAT) / NULLIF(ABS(YEAR(GETDATE()) - p.publication_year) + 1, 0)) DESC", nativeQuery = true)
     List<Paper> findRelatedPapers(@Param("paperId") Long paperId, @Param("topicId") Integer topicId);
 
     @Query("""
