@@ -25,4 +25,6 @@ public class ReportTicketResponse {
     private ReportTicket.ReportStatus status;
 
     private String adminResponse;
+
+    private String reporterEmail;
 }

@@ -268,6 +268,11 @@ public enum ErrorCode {
             "DOI already exists",
             HttpStatus.BAD_REQUEST),
 
+    OPENALEX_PAPER_NOT_FOUND(
+            1303,
+            "Cannot retrieve paper metadata from OpenAlex source. It might be a local draft or proposal.",
+            HttpStatus.NOT_FOUND),
+
     API_SOURCE_NOT_FOUND(
             2001,
             "API source not found",

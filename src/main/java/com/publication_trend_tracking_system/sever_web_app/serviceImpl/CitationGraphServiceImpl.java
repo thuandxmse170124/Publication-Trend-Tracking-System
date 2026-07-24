@@ -5,6 +5,8 @@ import com.publication_trend_tracking_system.sever_web_app.client.OpenAlexClient
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.*;
 import com.publication_trend_tracking_system.sever_web_app.entity.Paper;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.PaperRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.CitationGraphService;
 import com.publication_trend_tracking_system.sever_web_app.service.citation.CitationRelationshipAnalyzer;
@@ -264,8 +266,8 @@ public class CitationGraphServiceImpl implements CitationGraphService {
                     || work.path("id").isMissingNode()
                     || work.path("id").asText().isBlank()) {
 
-                throw new RuntimeException(
-                        "Cannot find paper on OpenAlex"
+                throw new AppException(
+                        ErrorCode.OPENALEX_PAPER_NOT_FOUND
                 );
             }
 
@@ -280,8 +282,8 @@ public class CitationGraphServiceImpl implements CitationGraphService {
             return openAlexId;
         }
 
-        throw new RuntimeException(
-                "Paper does not have OpenAlex ID, OpenAlex source URL, or DOI"
+        throw new AppException(
+                ErrorCode.OPENALEX_PAPER_NOT_FOUND
         );
     }
     /**
@@ -652,11 +654,11 @@ public class CitationGraphServiceImpl implements CitationGraphService {
     @Transactional(readOnly = true)
     public ResearchContextResponse getResearchContext(Long paperId) {
         Paper paper = paperRepository.findById(paperId)
-                .orElseThrow(() -> new RuntimeException("Paper not found: " + paperId));
+                .orElseThrow(() -> new AppException(ErrorCode.PAPER_NOT_FOUND));
         String openAlexId = resolveOpenAlexId(paper);
         JsonNode centerWork = openAlexClient.getWorkByOpenAlexId(openAlexId);
         if (centerWork == null) {
-            throw new RuntimeException("Cannot get paper from OpenAlex");
+            throw new AppException(ErrorCode.OPENALEX_PAPER_NOT_FOUND);
         }
 
         return buildResearchContext(centerWork, getReferencesByOpenAlexId(openAlexId), getCitedByOpenAlexId(openAlexId));
@@ -668,7 +670,7 @@ public class CitationGraphServiceImpl implements CitationGraphService {
         String normalizedId = extractOpenAlexId(openAlexId);
         JsonNode centerWork = openAlexClient.getWorkByOpenAlexId(normalizedId);
         if (centerWork == null || centerWork.path("id").asText().isBlank()) {
-            throw new RuntimeException("Cannot find paper on OpenAlex: " + normalizedId);
+            throw new AppException(ErrorCode.OPENALEX_PAPER_NOT_FOUND);
         }
         return buildResearchContext(centerWork, getReferencesByOpenAlexId(normalizedId), getCitedByOpenAlexId(normalizedId));
     }

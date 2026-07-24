@@ -142,7 +142,7 @@ public class TopicSeedServiceImpl implements TopicSeedService {
         // constraint — without letting two distinct official topics whose names differ only by
         // case steal each other's row (see repository method javadoc).
         Topic topic = topicRepository.findByOpenalexId(topicOpenalexId)
-                .or(() -> topicRepository.findByTopicNameIgnoreCaseAndOpenalexIdIsNull(displayName))
+                .or(() -> topicRepository.findFirstByTopicNameIgnoreCase(displayName))
                 .orElseGet(Topic::new);
 
         topic.setOpenalexId(topicOpenalexId);

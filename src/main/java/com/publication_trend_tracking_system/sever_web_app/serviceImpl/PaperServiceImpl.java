@@ -127,7 +127,44 @@ public class PaperServiceImpl implements PaperService {
         String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
         List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
-        Page<Paper> papers = paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
+        Long idKeyword = null;
+        if (kwParam != null) {
+            try {
+                idKeyword = Long.parseLong(kwParam);
+            } catch (NumberFormatException e) {
+                // Not numeric, keep as null
+            }
+        }
+
+        boolean isAdmin = false;
+        org.springframework.security.core.Authentication authentication = 
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            isAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        }
+
+        List<com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus> visibilities = new java.util.ArrayList<>();
+        visibilities.add(com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus.VISIBLE);
+        if (isAdmin) {
+            visibilities.add(com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus.HIDDEN);
+        }
+
+        Page<Paper> papers = paperRepository.searchPapers(
+                kwParam, 
+                idKeyword, 
+                authParam, 
+                jParam, 
+                fromYear, 
+                toYear, 
+                instParam, 
+                tParam, 
+                isOpenAccess, 
+                fieldId, 
+                topicId, 
+                visibilities, 
+                pageable
+        );
 
         return papers.map(this::toResponse);
     }

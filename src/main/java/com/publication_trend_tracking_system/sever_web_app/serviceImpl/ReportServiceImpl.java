@@ -94,6 +94,8 @@ public class ReportServiceImpl
                                         report.getStatus())
                                 .adminResponse(
                                         report.getAdminResponse())
+                                .reporterEmail(
+                                        report.getUser() != null ? report.getUser().getEmail() : null)
                                 .createdAt(
                                         report.getCreatedAt())
                                 .build())
@@ -122,6 +124,8 @@ public class ReportServiceImpl
                                         report.getStatus())
                                 .adminResponse(
                                         report.getAdminResponse())
+                                .reporterEmail(
+                                        report.getUser() != null ? report.getUser().getEmail() : null)
                                 .createdAt(
                                         report.getCreatedAt())
                                 .build())

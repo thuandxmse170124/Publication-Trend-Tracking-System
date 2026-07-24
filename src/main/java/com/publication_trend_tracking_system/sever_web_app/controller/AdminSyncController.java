@@ -1,19 +1,18 @@
 package com.publication_trend_tracking_system.sever_web_app.controller;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.ApiResponse;
-import com.publication_trend_tracking_system.sever_web_app.dto.response.SyncJobPaperResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.SyncJobResponse;
-import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicSeedStatusResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.SyncService;
-import com.publication_trend_tracking_system.sever_web_app.service.TopicSeedService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,16 +22,16 @@ import org.springframework.web.bind.annotation.*;
 public class AdminSyncController {
 
     private final SyncService syncService;
-    private final TopicSeedService topicSeedService;
     private final UserRepository userRepository;
+    private final com.publication_trend_tracking_system.sever_web_app.service.TopicSeedService topicSeedService;
 
     @PostMapping("/trigger/{sourceId}")
     public ApiResponse<SyncJobResponse> triggerSync(
             @PathVariable Integer sourceId,
             @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "ALL") com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange,
-            @RequestParam(required = false) String fromDate,
-            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             Authentication authentication) {
 
         User user = null;
@@ -88,12 +87,25 @@ public class AdminSyncController {
                 .build();
     }
 
+    @PostMapping("/jobs/{jobId}/cancel")
+    public ApiResponse<SyncJobResponse> cancelSyncJob(
+            @PathVariable Long jobId) {
+
+        SyncJobResponse result = syncService.cancelSyncJob(jobId);
+
+        return ApiResponse.<SyncJobResponse>builder()
+                .code(1000)
+                .message("Sync job cancelled successfully")
+                .result(result)
+                .build();
+    }
+
     @PostMapping("/trigger-all/{sourceId}")
     public ApiResponse<SyncJobResponse> triggerSyncAll(
             @PathVariable Integer sourceId,
             @RequestParam(defaultValue = "ALL") com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange,
-            @RequestParam(required = false) String fromDate,
-            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             Authentication authentication) {
 
         User user = null;
@@ -112,63 +124,40 @@ public class AdminSyncController {
                 .build();
     }
 
-    @GetMapping("/jobs/{jobId}/papers")
-    public ApiResponse<Page<SyncJobPaperResponse>> getSyncJobPapers(
-            @PathVariable Long jobId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-
-        Page<SyncJobPaperResponse> result = syncService.getSyncJobPapers(jobId, page, size);
-
-        return ApiResponse.<Page<SyncJobPaperResponse>>builder()
-                .code(1000)
-                .message("Get sync job papers success")
-                .result(result)
-                .build();
-    }
-
-    @PostMapping("/jobs/{jobId}/stop")
-    public ApiResponse<Void> stopSyncJob(@PathVariable Long jobId) {
-        syncService.stopSyncJob(jobId);
-        return ApiResponse.<Void>builder()
-                .code(1000)
-                .message("Stop signal sent to sync job")
-                .build();
-    }
-
     @GetMapping("/scheduler/status")
     public ApiResponse<Boolean> getSchedulerStatus() {
         return ApiResponse.<Boolean>builder()
                 .code(1000)
-                .message("Get background scheduler status success")
-                .result(syncService.isSchedulerEnabled())
+                .message("Get scheduler status success")
+                .result(com.publication_trend_tracking_system.sever_web_app.scheduler.SyncScheduler.isSchedulerEnabled())
                 .build();
     }
 
     @PostMapping("/scheduler/toggle")
-    public ApiResponse<Boolean> toggleScheduler(@RequestParam boolean enabled) {
-        boolean result = syncService.setSchedulerEnabled(enabled);
+    public ApiResponse<Boolean> toggleScheduler(
+            @RequestParam boolean enabled) {
+        com.publication_trend_tracking_system.sever_web_app.scheduler.SyncScheduler.setSchedulerEnabled(enabled);
         return ApiResponse.<Boolean>builder()
                 .code(1000)
-                .message("Background scheduler " + (result ? "enabled" : "disabled"))
-                .result(result)
+                .message("Scheduler status updated successfully")
+                .result(enabled)
                 .build();
     }
 
-    @PostMapping("/seed-topics")
+    @PostMapping("/topics/seed")
     public ApiResponse<Void> seedTopics() {
         topicSeedService.seedOfficialTaxonomy();
         return ApiResponse.<Void>builder()
                 .code(1000)
-                .message("OpenAlex topic taxonomy seed job started in background")
+                .message("Topic taxonomy seeding triggered in background")
                 .build();
     }
 
-    @GetMapping("/seed-topics/status")
-    public ApiResponse<TopicSeedStatusResponse> getSeedTopicsStatus() {
-        return ApiResponse.<TopicSeedStatusResponse>builder()
+    @GetMapping("/topics/seed/status")
+    public ApiResponse<com.publication_trend_tracking_system.sever_web_app.dto.response.TopicSeedStatusResponse> getSeedStatus() {
+        return ApiResponse.<com.publication_trend_tracking_system.sever_web_app.dto.response.TopicSeedStatusResponse>builder()
                 .code(1000)
-                .message("Get topic taxonomy seed status success")
+                .message("Get topic seed status success")
                 .result(topicSeedService.getSeedStatus())
                 .build();
     }

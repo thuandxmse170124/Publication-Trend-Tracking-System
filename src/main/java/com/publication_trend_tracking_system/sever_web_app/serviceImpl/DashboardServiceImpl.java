@@ -192,8 +192,8 @@ public class DashboardServiceImpl implements DashboardService {
 
     private TopicTrendResponse calculateTrend(Topic topic) {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime currentStart = now.minusDays(30);
-        LocalDateTime previousStart = now.minusDays(60);
+        LocalDateTime currentStart = now.minusDays(1);
+        LocalDateTime previousStart = now.minusDays(2);
 
         long currentCount =
                 paperRepository.countTopicPapersBetween(

@@ -56,20 +56,22 @@ public class UserSubscriptionServiceImpl
                                 userId,
                                 "ACTIVE"
                         )
-                        .orElseThrow(() ->
-                                new AppException(
-                                        ErrorCode.SUBSCRIPTION_NOT_FOUND
-                                ));
+                        .orElse(null);
+
+        if (subscription == null) {
+            return CurrentSubscriptionResponse.builder()
+                    .premium(false)
+                    .status("NONE")
+                    .build();
+        }
 
         if (subscription.getEndDate().isBefore(LocalDateTime.now())) {
-
             subscription.setStatus("EXPIRED");
-
             repository.save(subscription);
-
-            throw new AppException(
-                    ErrorCode.SUBSCRIPTION_NOT_FOUND
-            );
+            return CurrentSubscriptionResponse.builder()
+                    .premium(false)
+                    .status("EXPIRED")
+                    .build();
         }
 
         return CurrentSubscriptionResponse.builder()

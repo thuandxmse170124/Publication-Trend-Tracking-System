@@ -18,10 +18,20 @@ public class SyncScheduler {
     private final SyncService syncService;
     private final ApiSourceRepository apiSourceRepository;
 
+    private static volatile boolean schedulerEnabled = true;
+
+    public static boolean isSchedulerEnabled() {
+        return schedulerEnabled;
+    }
+
+    public static void setSchedulerEnabled(boolean enabled) {
+        schedulerEnabled = enabled;
+    }
+
     @Scheduled(cron = "${app.sync.cron:0 0 2 * * SUN}")
     public void runScheduledSync() {
-        if (!syncService.isSchedulerEnabled()) {
-            log.info("Scheduled sync skipped: background sync is disabled via admin toggle.");
+        if (!schedulerEnabled) {
+            log.info("Scheduled background synchronization task is disabled. Skipping...");
             return;
         }
         log.info("Starting scheduled background synchronization task...");
@@ -30,7 +40,7 @@ public class SyncScheduler {
             if ("ACTIVE".equalsIgnoreCase(source.getStatus())) {
                 try {
                     log.info("Triggering scheduled sync for source: {}", source.getSourceName());
-                    syncService.triggerScheduledSync(source.getSourceId());
+                    syncService.syncFromSource(source.getSourceId(), null, null, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange.DAY, null, null);
                 } catch (Exception ex) {
                     log.error("Failed to run scheduled sync for source: " + source.getSourceName(), ex);
                 }
