@@ -5,6 +5,8 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.CurrentS
 import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.PremiumResponse;
+import com.publication_trend_tracking_system.sever_web_app.service.PremiumService;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.UserSubscriptionService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -13,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/member/subscription")
@@ -23,6 +26,20 @@ public class UserSubscriptionController {
     private final UserSubscriptionService service;
 
     private final UserRepository userRepository;
+
+    private final PremiumService premiumService;
+
+    @GetMapping("/packages")
+    public ApiResponse<List<PremiumResponse>> getPremiumPackages() {
+        List<PremiumResponse> activePackages = premiumService.getAllPremiums().stream()
+                .filter(PremiumResponse::getIsActive)
+                .toList();
+        return ApiResponse.<List<PremiumResponse>>builder()
+                .code(1000)
+                .message("Get Active Premium Packages Success")
+                .result(activePackages)
+                .build();
+    }
 
     @GetMapping("/current")
     public ApiResponse<CurrentSubscriptionResponse>

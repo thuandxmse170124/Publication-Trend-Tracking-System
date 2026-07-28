@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "journals")
+@Table(name = "journals", indexes = {
+    @Index(name = "idx_journals_name", columnList = "name")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,6 +19,9 @@ public class Journal {
     @Column(name = "journal_id")
     private Integer journalId;
 
+    // Not @Nationalized: the actual DB column is varchar, not nvarchar. Hibernate binding this
+    // as NCHAR against a varchar column made the SQL Server driver reject every read with
+    // "The conversion from varchar to NCHAR is unsupported", failing every journal lookup.
     @Column(name = "name", nullable = false)
     private String name;
 

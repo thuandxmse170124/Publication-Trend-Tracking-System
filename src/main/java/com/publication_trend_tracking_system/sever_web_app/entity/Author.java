@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "authors")
+@Table(name = "authors", indexes = {
+    @Index(name = "idx_authors_fullname", columnList = "full_name")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,6 +19,8 @@ public class Author {
     @Column(name = "author_id")
     private Long authorId;
 
+    // Not @Nationalized: the actual DB column is varchar, not nvarchar (same issue as
+    // Journal.name — see comment there).
     @Column(name = "full_name", nullable = false)
     private String fullName;
 

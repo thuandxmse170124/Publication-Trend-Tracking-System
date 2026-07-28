@@ -175,6 +175,12 @@ public class BookmarkServiceImpl
                     ErrorCode.UNAUTHORIZED);
         }
 
+        // Delete all papers bookmarked under this folder to prevent foreign key constraint violations
+        List<BookmarkPaper> papersInFolder = bookmarkPaperRepository.findByFolderFolderId(folderId);
+        if (papersInFolder != null && !papersInFolder.isEmpty()) {
+            bookmarkPaperRepository.deleteAll(papersInFolder);
+        }
+
         bookmarkFolderRepository.delete(folder);
     }
     @Override
@@ -229,6 +235,7 @@ public class BookmarkServiceImpl
                         .note(
                                 request.getNote())
                         .folder(folder)
+                        .user(user)
                         .build();
 
         bookmarkPaperRepository.save(paper);

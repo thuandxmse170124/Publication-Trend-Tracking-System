@@ -18,4 +18,9 @@ public interface FollowJournalRepository
     void deleteByUserUserIdAndJournalJournalId(
             Long userId,
             Integer journalId);
+
+    List<FollowJournal> findByJournalJournalId(
+            Integer journalId);
+
+    List<FollowJournal> findByJournalJournalIdIn(java.util.Collection<Integer> journalIds);
 }

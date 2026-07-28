@@ -18,4 +18,9 @@ public interface FollowAuthorRepository
     void deleteByUserUserIdAndAuthorAuthorId(
             Long userId,
             Long authorId);
+
+    List<FollowAuthor> findByAuthorAuthorId(
+            Long authorId);
+
+    List<FollowAuthor> findByAuthorAuthorIdIn(java.util.Collection<Long> authorIds);
 }

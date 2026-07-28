@@ -10,7 +10,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "papers")
+@Table(name = "papers", indexes = {
+    @Index(name = "idx_papers_title", columnList = "title"),
+    @Index(name = "idx_papers_created_at", columnList = "created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -39,15 +42,20 @@ public class Paper {
     @Column(name = "publication_type", nullable = false)
     private PaperPublicationType publicationType;
 
-    @Column(name = "title", nullable = false)
+    // Not @Nationalized: the actual DB column is varchar, not nvarchar (same issue as
+    // Journal.name — see comment there). This one broke every single paper insert/update.
+    @Column(name = "title", nullable = false, length = 500)
     private String title;
 
-    @Column(name = "abstract", columnDefinition = "VARCHAR(MAX)")
+    @Column(name = "abstract", columnDefinition = "NVARCHAR(MAX)")
     private String paperAbstract;
 
     @Column(name = "publication_year")
     private Integer publicationYear;
 
+    @Column(name = "openalex_id", unique = true)
+    private String openAlexId;
+    
     @Column(name = "doi", unique = true)
     private String doi;
 
@@ -96,6 +104,15 @@ public class Paper {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    // Last sync job that touched this paper, and whether that touch created (ADDED) or
+    // modified (UPDATED) it. Only reflects the most recent sync — not full history — so the
+    // admin UI can list "papers added/updated by job X" right after that job runs.
+    @Column(name = "last_sync_job_id")
+    private Long lastSyncJobId;
+
+    @Column(name = "last_sync_action", length = 10)
+    private String lastSyncAction;
 
     @PrePersist
     public void prePersist() {

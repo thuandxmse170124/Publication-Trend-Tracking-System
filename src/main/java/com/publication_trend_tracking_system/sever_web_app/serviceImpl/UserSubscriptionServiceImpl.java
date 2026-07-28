@@ -21,16 +21,28 @@ public class UserSubscriptionServiceImpl
     @Override
     public boolean isPremium(Long userId) {
 
-        return repository
-                .findFirstByUser_UserIdAndStatusOrderByEndDateDesc(
-                        userId,
-                        "ACTIVE"
-                )
-                .filter(subscription ->
-                        subscription.getEndDate()
-                                .isAfter(LocalDateTime.now()))
-                .isPresent();
+        UserSubscription subscription =
+                repository
+                        .findFirstByUser_UserIdAndStatusOrderByEndDateDesc(
+                                userId,
+                                "ACTIVE"
+                        )
+                        .orElse(null);
 
+        if (subscription == null) {
+            return false;
+        }
+
+        if (subscription.getEndDate().isBefore(LocalDateTime.now())) {
+
+            subscription.setStatus("EXPIRED");
+
+            repository.save(subscription);
+
+            return false;
+        }
+
+        return true;
     }
 
     @Override
@@ -44,22 +56,38 @@ public class UserSubscriptionServiceImpl
                                 userId,
                                 "ACTIVE"
                         )
-                        .orElseThrow(() ->
-                                new AppException(
-                                        ErrorCode.SUBSCRIPTION_NOT_FOUND
-                                ));
+                        .orElse(null);
+
+        if (subscription == null) {
+            return CurrentSubscriptionResponse.builder()
+                    .premium(false)
+                    .status("NONE")
+                    .build();
+        }
+
+        if (subscription.getEndDate().isBefore(LocalDateTime.now())) {
+            subscription.setStatus("EXPIRED");
+            repository.save(subscription);
+            return CurrentSubscriptionResponse.builder()
+                    .premium(false)
+                    .status("EXPIRED")
+                    .build();
+        }
 
         return CurrentSubscriptionResponse.builder()
                 .premium(true)
                 .packageName(
-                        subscription
-                                .getPremium()
-                                .getPackageName()
+                        subscription.getPremium().getPackageName()
                 )
-                .startDate(subscription.getStartDate())
-                .endDate(subscription.getEndDate())
-                .status(subscription.getStatus())
+                .startDate(
+                        subscription.getStartDate()
+                )
+                .endDate(
+                        subscription.getEndDate()
+                )
+                .status(
+                        subscription.getStatus()
+                )
                 .build();
-
     }
 }

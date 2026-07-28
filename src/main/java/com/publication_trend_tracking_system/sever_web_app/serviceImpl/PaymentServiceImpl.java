@@ -3,6 +3,7 @@ package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.PaymentResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.Invoice;
+import com.publication_trend_tracking_system.sever_web_app.enums.InvoiceStatus;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.InvoiceRepository;
@@ -23,91 +24,102 @@ import java.time.LocalDateTime;
 public class PaymentServiceImpl
         implements PaymentService {
 
-    private final PayOS payOS;
+        private final PayOS payOS;
 
-    private final InvoiceRepository invoiceRepository;
+        private final InvoiceRepository invoiceRepository;
 
-    @Override
-    public PaymentResponse createPayment(
-            Long invoiceId
-    ) {
+        @Override
+        public PaymentResponse createPayment(
+                Long invoiceId
 
-        Invoice invoice =
-                invoiceRepository
-                        .findById(invoiceId)
-                        .orElseThrow(() ->
-                                new AppException(
-                                        ErrorCode.INVOICE_NOT_FOUND
-                                ));
+        ) {
 
-        if (!"PENDING".equals(invoice.getStatus())) {
+                Invoice invoice =
+                        invoiceRepository
+                                .findById(invoiceId)
+                                .orElseThrow(() ->
+                                        new AppException(
+                                                ErrorCode.INVOICE_NOT_FOUND
+                                        ));
 
-            throw new AppException(
-                    ErrorCode.INVALID_INVOICE_STATUS
-            );
+                if (invoice.getStatus() != InvoiceStatus.PENDING) {
+
+                        throw new AppException(
+                                ErrorCode.INVALID_INVOICE_STATUS
+                        );
+                }
+
+                Long orderCode;
+
+                if (invoice.getOrderCode() == null) {
+
+                        orderCode = System.currentTimeMillis();
+
+                        invoice.setOrderCode(orderCode);
+
+                        invoiceRepository.save(invoice);
+
+                } else {
+
+                        orderCode = invoice.getOrderCode();
+                }
+
+                try {
+
+                        PaymentLinkItem item =
+                                PaymentLinkItem.builder()
+                                        .name(
+                                                invoice.getPackageName()
+                                        )
+                                        .price(
+                                                invoice.getFinalAmount()
+                                                        .longValue()
+                                        )
+                                        .quantity(1)
+                                        .build();
+
+                        CreatePaymentLinkRequest request =
+                                CreatePaymentLinkRequest.builder()
+                                        .orderCode(orderCode)
+                                        .amount(
+                                                invoice.getFinalAmount().longValue()
+                                        )
+                                        .description(
+                                                invoice.getPackageName()
+                                        )
+                                        .returnUrl(
+                                                "http://localhost:3000/payment/success"
+                                        )
+                                        .cancelUrl(
+                                                "http://localhost:3000/payment/cancel"
+                                        )
+                                        .item(item)
+                                        .build();
+                        CreatePaymentLinkResponse response =
+                                payOS.paymentRequests()
+                                        .create(request);
+
+                        return PaymentResponse.builder()
+                                .checkoutUrl(
+                                        response.getCheckoutUrl()
+                                )
+                                .paymentLinkId(
+                                        response.getPaymentLinkId()
+                                )
+                                .qrCode(
+                                        response.getQrCode()
+                                )
+                                .build();
+
+                } catch (Exception e) {
+
+                        e.printStackTrace();
+
+                        throw new AppException(
+                                ErrorCode.PAYMENT_CREATE_FAILED
+                        );
+
+                }
+
         }
-
-        try {
-
-            PaymentLinkItem item =
-                    PaymentLinkItem.builder()
-                            .name(
-                                    invoice.getPremium()
-                                            .getPackageName()
-                            )
-                            .price(
-                                    invoice.getFinalAmount()
-                                            .longValue()
-                            )
-                            .quantity(1)
-                            .build();
-
-            CreatePaymentLinkRequest request =
-                    CreatePaymentLinkRequest.builder()
-                            .orderCode(
-                                    invoice.getInvoiceId()
-                            )
-                            .amount(
-                                    invoice.getFinalAmount()
-                                            .longValue()
-                            )
-                            .description(
-                                    "Premium"
-                            )
-                            .returnUrl(
-                                    "http://localhost:3000/payment/success"
-                            )
-                            .cancelUrl(
-                                    "http://localhost:3000/payment/cancel"
-                            )
-                            .item(item)
-                            .build();
-
-            CreatePaymentLinkResponse response =
-                    payOS.paymentRequests()
-                            .create(request);
-
-            return PaymentResponse.builder()
-                    .checkoutUrl(
-                            response.getCheckoutUrl()
-                    )
-                    .paymentLinkId(
-                            response.getPaymentLinkId()
-                    )
-                    .qrCode(
-                            response.getQrCode()
-                    )
-                    .build();
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-
-            throw new AppException(
-                    ErrorCode.PAYMENT_CREATE_FAILED
-            );
-
-        }
-
-    }
 }

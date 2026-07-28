@@ -17,101 +17,92 @@ import java.util.List;
 
 public class DiscountController {
 
+        private final AdminDiscountService adminDiscountService;
 
-    private final AdminDiscountService adminDiscountService;
+        @PostMapping
+        public ApiResponse<DiscountResponse> createDiscount(
+                        @RequestBody CreateDiscountRequest request) {
 
-    @PostMapping
-    public ApiResponse<DiscountResponse> createDiscount(
-            @RequestBody CreateDiscountRequest request
-    ) {
+                return ApiResponse
+                                .<DiscountResponse>builder()
+                                .code(1000)
+                                .message("Create Discount Success")
+                                .result(adminDiscountService.createDiscount(request))
+                                .build();
+        }
 
-        return ApiResponse
-                .<DiscountResponse>builder()
-                .code(1000)
-                .message("Create Discount Success")
-                .result(adminDiscountService.createDiscount(request))
-                .build();
-    }
+        @GetMapping
+        public ApiResponse<org.springframework.data.domain.Page<DiscountResponse>> getAllDiscounts(
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size) {
+                org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page,
+                                size);
 
-    @GetMapping
-    public ApiResponse<List<DiscountResponse>> getAllDiscounts() {
+                return ApiResponse.<org.springframework.data.domain.Page<DiscountResponse>>builder()
+                                .code(1000)
+                                .message("Get Discounts Success")
+                                .result(adminDiscountService.getAllDiscounts(pageable))
+                                .build();
+        }
 
-        return ApiResponse
-                .<List<DiscountResponse>>builder()
-                .code(1000)
-                .message("Get Discounts Success")
-                .result(adminDiscountService.getAllDiscounts())
-                .build();
-    }
+        @PostMapping("/{discountId}/premiums/{premiumId}")
+        public ApiResponse<Void> assignDiscountToPremium(
+                        @PathVariable Long discountId,
+                        @PathVariable Long premiumId) {
 
-    @PostMapping("/{discountId}/premiums/{premiumId}")
-    public ApiResponse<Void> assignDiscountToPremium(
-            @PathVariable Long discountId,
-            @PathVariable Long premiumId
-    ) {
+                adminDiscountService.assignDiscount(
+                                premiumId,
+                                discountId);
 
-        adminDiscountService.assignDiscount(
-                premiumId,
-                discountId
-        );
+                return ApiResponse.<Void>builder()
+                                .code(1000)
+                                .message("Assign Discount Success")
+                                .build();
+        }
 
-        return ApiResponse.<Void>builder()
-                .code(1000)
-                .message("Assign Discount Success")
-                .build();
-    }
-    @PutMapping("/{discountId}")
-    public ApiResponse<DiscountResponse> updateDiscount(
+        @PutMapping("/{discountId}")
+        public ApiResponse<DiscountResponse> updateDiscount(
 
-            @PathVariable Long discountId,
+                        @PathVariable Long discountId,
 
-            @RequestBody
-            CreateDiscountRequest request
-    ) {
+                        @RequestBody CreateDiscountRequest request) {
 
-        return ApiResponse
-                .<DiscountResponse>builder()
-                .code(1000)
-                .message("Update Discount Success")
-                .result(
-                        adminDiscountService.updateDiscount(
-                                discountId,
-                                request
-                        )
-                )
-                .build();
-    }
-    @DeleteMapping("/{discountId}")
-    public ApiResponse<Void> deleteDiscount(
+                return ApiResponse
+                                .<DiscountResponse>builder()
+                                .code(1000)
+                                .message("Update Discount Success")
+                                .result(
+                                                adminDiscountService.updateDiscount(
+                                                                discountId,
+                                                                request))
+                                .build();
+        }
 
-            @PathVariable Long discountId
-    ) {
+        @DeleteMapping("/{discountId}")
+        public ApiResponse<Void> deleteDiscount(
 
-        adminDiscountService.deleteDiscount(
-                discountId
-        );
+                        @PathVariable Long discountId) {
 
-        return ApiResponse.<Void>builder()
-                .code(1000)
-                .message("Delete Discount Success")
-                .build();
-    }
-    @DeleteMapping("/{discountId}/premiums/{premiumId}")
-    public ApiResponse<Void> removeDiscountFromPremium(
+                adminDiscountService.deleteDiscount(
+                                discountId);
 
-            @PathVariable Long discountId,
+                return ApiResponse.<Void>builder()
+                                .code(1000)
+                                .message("Delete Discount Success")
+                                .build();
+        }
 
-            @PathVariable Long premiumId
-    ) {
+        @DeleteMapping("/premiums/{premiumId}")
+        public ApiResponse<Void> removeDiscountFromPremium(
 
-        adminDiscountService.removeDiscountFromPremium(
-                premiumId,
-                discountId
-        );
+                        @PathVariable Long premiumId) {
 
-        return ApiResponse.<Void>builder()
-                .code(1000)
-                .message("Remove Discount Success")
-                .build();
-    }
+                adminDiscountService.removeDiscountFromPremium(
+                                premiumId);
+
+                return ApiResponse.<Void>builder()
+                                .code(1000)
+                                .message("Remove Discount Success")
+                                .build();
+        }
 }
