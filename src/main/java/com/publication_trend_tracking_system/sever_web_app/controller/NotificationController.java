@@ -30,6 +30,34 @@ public class NotificationController {
                 .build();
     }
 
+    // Paged variant. The unpaged endpoint above is kept so existing clients keep working, but this
+    // is what the UI should call: a user's feed grows with every sync and there is no reason to
+    // ship all of it to render a dropdown.
+    @GetMapping("/paged")
+    public ApiResponse<?> getMyNotificationsPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) {
+
+        return ApiResponse.builder()
+                .code(1000)
+                .message("Success")
+                .result(notificationService.getMyNotifications(
+                        authentication.getName(),
+                        org.springframework.data.domain.PageRequest.of(page, Math.min(size, 100))))
+                .build();
+    }
+
+    // Counted in the database, so the badge stays correct regardless of how many pages exist.
+    @GetMapping("/unread-count")
+    public ApiResponse<?> getUnreadCount(Authentication authentication) {
+        return ApiResponse.builder()
+                .code(1000)
+                .message("Success")
+                .result(notificationService.countUnread(authentication.getName()))
+                .build();
+    }
+
     @PatchMapping("/{notificationId}/read")
     public ApiResponse<?> markAsRead(
             @PathVariable Long notificationId,
