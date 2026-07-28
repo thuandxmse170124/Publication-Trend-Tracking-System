@@ -3,6 +3,7 @@ package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.AuthorResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.PaperResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicResponse;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicTagResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.Paper;
 import com.publication_trend_tracking_system.sever_web_app.entity.Topic;
 import com.publication_trend_tracking_system.sever_web_app.entity.Keyword;
@@ -95,8 +96,11 @@ public class TopicServiceImpl implements TopicService {
                 .map(Keyword::getKeywordName)
                 .toList();
 
-        List<String> topicStrings = paper.getTopics().stream()
-                .map(Topic::getTopicName)
+        List<TopicTagResponse> topicTags = paper.getTopics().stream()
+                .map(t -> TopicTagResponse.builder()
+                        .topicId(t.getTopicId())
+                        .topicName(t.getTopicName())
+                        .build())
                 .toList();
 
         return PaperResponse.builder()
@@ -119,7 +123,7 @@ public class TopicServiceImpl implements TopicService {
                 .updatedAt(paper.getUpdatedAt())
                 .authors(authorResponses)
                 .keywords(keywordStrings)
-                .topics(topicStrings)
+                .topics(topicTags)
                 .build();
     }
 }

@@ -30,6 +30,8 @@ public interface PaperService {
             Boolean isOpenAccess,
             Integer fieldId,
             Integer topicId,
+            /** Also scan paper abstracts. Off by default — see PaperRepository.searchPapers. */
+            boolean searchAbstract,
             Pageable pageable
     );
 

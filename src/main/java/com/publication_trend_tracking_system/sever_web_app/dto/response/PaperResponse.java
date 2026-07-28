@@ -54,5 +54,5 @@ public class PaperResponse {
 
     private List<String> keywords;
 
-    private List<String> topics;
+    private List<TopicTagResponse> topics;
 }
