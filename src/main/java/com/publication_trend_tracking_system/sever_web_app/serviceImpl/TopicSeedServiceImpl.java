@@ -47,6 +47,7 @@ public class TopicSeedServiceImpl implements TopicSeedService {
     private final TopicDomainRepository topicDomainRepository;
     private final ApplicationContext applicationContext;
     private final com.publication_trend_tracking_system.sever_web_app.config.OpenAlexKeyRotator openAlexKeyRotator;
+    private final com.publication_trend_tracking_system.sever_web_app.config.TopicSeedState seedState;
 
     private final RestTemplate restTemplate = new org.springframework.boot.web.client.RestTemplateBuilder()
             .setConnectTimeout(Duration.ofSeconds(5))
@@ -58,11 +59,20 @@ public class TopicSeedServiceImpl implements TopicSeedService {
     @Override
     @Async
     public void seedOfficialTaxonomy() {
+        if (!seedState.tryStart()) {
+            log.warn("Seed already running — ignoring duplicate start request.");
+            return;
+        }
         int page = 1;
         int totalUpserted = 0;
         log.info("Starting OpenAlex official topic taxonomy seed...");
         try {
             while (true) {
+                if (seedState.isCancelRequested()) {
+                    log.warn("Topic taxonomy seed canceled by admin after upserting {} topics.", totalUpserted);
+                    break;
+                }
+
                 String url = TOPICS_ENDPOINT + "?per-page=" + PAGE_SIZE + "&page=" + page + "&mailto=ptt.sync@university.edu";
                 String responseBody = fetchFromApi(url);
                 if (responseBody == null || responseBody.isBlank()) {
@@ -85,7 +95,14 @@ public class TopicSeedServiceImpl implements TopicSeedService {
             log.info("OpenAlex topic taxonomy seed completed. Upserted {} topics across {} pages.", totalUpserted, page);
         } catch (Exception ex) {
             log.error("Topic taxonomy seed failed after upserting {} topics", totalUpserted, ex);
+        } finally {
+            seedState.finish();
         }
+    }
+
+    @Override
+    public void cancelSeed() {
+        seedState.requestCancel();
     }
 
     @Override
@@ -96,6 +113,7 @@ public class TopicSeedServiceImpl implements TopicSeedService {
                 .domainCount(topicDomainRepository.count())
                 .fieldCount(topicFieldRepository.count())
                 .subfieldCount(topicSubfieldRepository.count())
+                .running(seedState.isRunning())
                 .build();
     }
 

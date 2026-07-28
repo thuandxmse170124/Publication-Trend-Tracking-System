@@ -7,7 +7,6 @@ import com.publication_trend_tracking_system.sever_web_app.repository.ApiSourceR
 import com.publication_trend_tracking_system.sever_web_app.repository.PaperRepository;
 import com.publication_trend_tracking_system.sever_web_app.repository.RoleRepository;
 import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
-import com.publication_trend_tracking_system.sever_web_app.service.SyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.publication_trend_tracking_system.sever_web_app.enums.UserStatus;
@@ -28,7 +27,6 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final ApiSourceRepository apiSourceRepository;
     private final PaperRepository paperRepository;
-    private final SyncService syncService;
     private final PasswordEncoder passwordEncoder;
 
     @Override

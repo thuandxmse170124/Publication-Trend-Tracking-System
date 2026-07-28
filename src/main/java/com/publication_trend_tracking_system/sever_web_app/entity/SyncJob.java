@@ -41,6 +41,21 @@ public class SyncJob {
     @Column(name = "error_message")
     private String errorMessage;
 
+    // The parameters this job actually ran with. Without them a "Retry" cannot reproduce the
+    // original run — it used to fall back to a full unbounded Sync All, which is the heaviest
+    // job in the system and nothing like the small failed job the admin meant to re-run.
+    @Column(name = "custom_query", length = 1000)
+    private String customQuery;
+
+    @Column(name = "time_range", length = 20)
+    private String timeRange;
+
+    @Column(name = "from_date", length = 20)
+    private String fromDate;
+
+    @Column(name = "to_date", length = 20)
+    private String toDate;
+
     // Populated only for structured OpenAlex "Sync All" runs (Implementation Plan v3), so the
     // frontend can show "processed / total official topics" progress. Null for custom-query and
     // Semantic Scholar jobs, which don't iterate the official topic taxonomy.

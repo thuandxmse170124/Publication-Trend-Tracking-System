@@ -14,6 +14,15 @@ public interface SyncService {
     SyncJobResponse syncAll(Integer sourceId, Long userId, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange, String fromDate, String toDate);
     void stopSyncJob(Long jobId);
 
+    /** Permanently removes a finished job's record. Synced papers are kept. */
+    void deleteSyncJob(Long jobId);
+
+    /**
+     * Marks jobs still RUNNING past the configured timeout as FAILED, so a run whose thread died
+     * cannot keep blocking new syncs for its source. Returns how many were released.
+     */
+    int failStaleRunningJobs();
+
     // Scheduled background sync (Implementation Plan v3 optimization): only re-checks topics
     // that already have papers, instead of sweeping the full taxonomy on every scheduled run.
     // Admin-triggered "Sync All" keeps doing the full sweep via syncAll() above.

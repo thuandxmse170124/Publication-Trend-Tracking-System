@@ -5,4 +5,5 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicSee
 public interface TopicSeedService {
     void seedOfficialTaxonomy();
     TopicSeedStatusResponse getSeedStatus();
+    void cancelSeed();
 }

@@ -50,6 +50,7 @@ public class SyncServiceImpl implements SyncService {
         public Set<String> topicOpenalexIds = new HashSet<>();
         public Set<String> keywordNames = new HashSet<>();
         public LocalDate publicationDate;
+        public Boolean isOpenAccess;
     }
 
     private final SyncJobRepository syncJobRepository;
@@ -63,17 +64,84 @@ public class SyncServiceImpl implements SyncService {
     private final ResearchFieldRepository researchFieldRepository;
     private final org.springframework.context.ApplicationContext applicationContext;
     private final NotificationService notificationService;
+    private final com.publication_trend_tracking_system.sever_web_app.service.DashboardService dashboardService;
     private final com.publication_trend_tracking_system.sever_web_app.config.OpenAlexKeyRotator openAlexKeyRotator;
     private final com.publication_trend_tracking_system.sever_web_app.repository.SchedulerSettingsRepository schedulerSettingsRepository;
+    private final com.publication_trend_tracking_system.sever_web_app.config.SyncJobState syncJobState;
 
     private static final Integer SCHEDULER_SETTINGS_ID = 1;
+
+    // How many papers to pull per topic/query. Small by default: the demo environment cares more
+    // about a sync finishing quickly than about exhaustive coverage.
+    @org.springframework.beans.factory.annotation.Value("${app.sync.max-papers-per-topic:20}")
+    private int maxPapersPerTopic;
+
+    // Ceiling on how many official topics a single manual "Sync All" sweeps. The full taxonomy is
+    // ~4,500 topics, which at the API's polite rate limit takes far too long to sit through during
+    // a demo. Set to 0 or below for no limit. Scheduled runs deliberately ignore this — see
+    // doExecuteSyncJob().
+    @org.springframework.beans.factory.annotation.Value("${app.sync.max-topics-per-job:200}")
+    private int maxTopicsPerJob;
+
+    @org.springframework.beans.factory.annotation.Value("${app.sync.scheduler-enabled-by-default:false}")
+    private boolean schedulerEnabledByDefault;
+
+    @org.springframework.beans.factory.annotation.Value("${app.sync.job-timeout-minutes:60}")
+    private int jobTimeoutMinutes;
+
+    @org.springframework.beans.factory.annotation.Value("${app.sync.worker-threads:2}")
+    private int syncWorkerThreads;
+
+    @org.springframework.beans.factory.annotation.Value("${app.sync.topics-per-request:25}")
+    private int topicsPerRequest;
+
+    @org.springframework.beans.factory.annotation.Value("${app.sync.papers-per-request:50}")
+    private int papersPerRequest;
+
+    // Must stay wide enough to cover the interval between two app.sync.cron firings.
+    @org.springframework.beans.factory.annotation.Value("${app.sync.scheduled-time-range:WEEK}")
+    private String scheduledTimeRangeName;
+
+    // Guards "is a job already RUNNING for this source?" together with the insert that follows.
+    // Apart they are a check-then-act race: two admins clicking Sync at the same moment both saw
+    // no running job and both started one.
+    private final Object jobCreationLock = new Object();
 
     @Override
     @Transactional(readOnly = true)
     public boolean isSchedulerEnabled() {
+        // Once an admin uses the toggle a row exists and it decides. Before that the configured
+        // default applies, and that default is off: an install nobody has configured should not
+        // start syncing on its own in the middle of the night.
         return schedulerSettingsRepository.findById(SCHEDULER_SETTINGS_ID)
                 .map(com.publication_trend_tracking_system.sever_web_app.entity.SchedulerSettings::isEnabled)
-                .orElse(true); // default ON until an admin explicitly toggles it
+                .orElse(schedulerEnabledByDefault);
+    }
+
+    @Override
+    @Transactional
+    public int failStaleRunningJobs() {
+        if (jobTimeoutMinutes <= 0) {
+            return 0;
+        }
+        List<SyncJob> stale = syncJobRepository.findStaleRunningJobs(
+                LocalDateTime.now().minusMinutes(jobTimeoutMinutes));
+        if (stale.isEmpty()) {
+            return 0;
+        }
+        for (SyncJob staleJob : stale) {
+            // Raise the cancel flag too: if the thread is somehow still alive, this stops it at the
+            // next page instead of leaving it writing to a job already marked FAILED.
+            syncJobState.requestCancel(staleJob.getSyncJobId());
+            staleJob.setStatus("FAILED");
+            staleJob.setErrorMessage("No longer running after " + jobTimeoutMinutes
+                    + " minutes; released so new syncs are not blocked");
+            staleJob.setFinishedAt(LocalDateTime.now());
+        }
+        syncJobRepository.saveAll(stale);
+        log.warn("Released {} stalled sync job(s) that had been RUNNING for over {} minutes.",
+                stale.size(), jobTimeoutMinutes);
+        return stale.size();
     }
 
     @Override
@@ -100,11 +168,32 @@ public class SyncServiceImpl implements SyncService {
     public void stopSyncJob(Long jobId) {
         SyncJob job = syncJobRepository.findById(jobId).orElseThrow(() -> new AppException(ErrorCode.SYNC_JOB_NOT_FOUND));
         if ("RUNNING".equalsIgnoreCase(job.getStatus())) {
+            // Raise the live signal first: worker threads poll this, so they stop at their next
+            // page boundary regardless of when the status write below lands.
+            syncJobState.requestCancel(jobId);
             job.setStatus("CANCELED");
             job.setFinishedAt(LocalDateTime.now());
             job.setErrorMessage("Manually stopped by Admin");
             syncJobRepository.save(job);
         }
+    }
+
+    @Override
+    @Transactional
+    public void deleteSyncJob(Long jobId) {
+        SyncJob job = syncJobRepository.findById(jobId)
+                .orElseThrow(() -> new AppException(ErrorCode.SYNC_JOB_NOT_FOUND));
+
+        if ("RUNNING".equalsIgnoreCase(job.getStatus())) {
+            throw new AppException(ErrorCode.SYNC_JOB_STILL_RUNNING);
+        }
+
+        // Papers keep their own rows — they are real synced data that other jobs may also have
+        // touched, so removing a job's history must not delete them. Only the back-reference is
+        // cleared, otherwise papers would point at a job id that no longer exists.
+        paperRepository.clearLastSyncJobId(jobId);
+        syncJobRepository.delete(job);
+        syncJobState.clear(jobId);
     }
 
     @jakarta.persistence.PersistenceContext
@@ -128,16 +217,22 @@ public class SyncServiceImpl implements SyncService {
         if (!"ACTIVE".equalsIgnoreCase(source.getStatus())) {
             throw new AppException(ErrorCode.API_SOURCE_INACTIVE);
         }
-        if (syncJobRepository.existsByApiSource_SourceIdAndStatus(sourceId, "RUNNING")) {
-            throw new AppException(ErrorCode.SYNC_JOB_ALREADY_RUNNING);
-        }
+        SyncJob job;
+        synchronized (jobCreationLock) {
+            if (syncJobRepository.existsByApiSource_SourceIdAndStatus(sourceId, "RUNNING")) {
+                throw new AppException(ErrorCode.SYNC_JOB_ALREADY_RUNNING);
+            }
 
-        SyncJob job = syncJobRepository.save(SyncJob.builder()
-                .apiSource(source)
-                .triggeredBy(null)
-                .status("RUNNING")
-                .startedAt(LocalDateTime.now())
-                .build());
+            job = syncJobRepository.save(SyncJob.builder()
+                    .apiSource(source)
+                    .triggeredBy(null)
+                    .status("RUNNING")
+                    .startedAt(LocalDateTime.now())
+                    // Recording the window keeps a later Retry from turning into an unbounded
+                    // full sweep.
+                    .timeRange(scheduledTimeRange().name())
+                    .build());
+        }
 
         try {
             applicationContext.getBean(SyncService.class).executeScheduledSyncJob(job.getSyncJobId(), sourceId);
@@ -159,22 +254,30 @@ public class SyncServiceImpl implements SyncService {
             throw new AppException(ErrorCode.API_SOURCE_INACTIVE);
         }
 
-        if (syncJobRepository.existsByApiSource_SourceIdAndStatus(sourceId, "RUNNING")) {
-            throw new AppException(ErrorCode.SYNC_JOB_ALREADY_RUNNING);
-        }
-
         User user = null;
         if (userId != null) {
             user = userRepository.findById(userId)
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         }
 
-        SyncJob job = syncJobRepository.save(SyncJob.builder()
-                .apiSource(source)
-                .triggeredBy(user)
-                .status("RUNNING")
-                .startedAt(LocalDateTime.now())
-                .build());
+        SyncJob job;
+        synchronized (jobCreationLock) {
+            if (syncJobRepository.existsByApiSource_SourceIdAndStatus(sourceId, "RUNNING")) {
+                throw new AppException(ErrorCode.SYNC_JOB_ALREADY_RUNNING);
+            }
+
+            job = syncJobRepository.save(SyncJob.builder()
+                    .apiSource(source)
+                    .triggeredBy(user)
+                    .status("RUNNING")
+                    .startedAt(LocalDateTime.now())
+                    // Recorded so retrySyncJob() can re-run this exact job rather than guessing.
+                    .customQuery(customQuery)
+                    .timeRange(timeRange != null ? timeRange.name() : null)
+                    .fromDate(fromDate)
+                    .toDate(toDate)
+                    .build());
+        }
 
         try {
             applicationContext.getBean(SyncService.class).executeSyncJob(job.getSyncJobId(), sourceId, customQuery, timeRange, fromDate, toDate);
@@ -204,7 +307,22 @@ public class SyncServiceImpl implements SyncService {
     @Override
     @org.springframework.scheduling.annotation.Async
     public void executeScheduledSyncJob(Long jobId, Integer sourceId) {
-        doExecuteSyncJob(jobId, sourceId, null, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange.DAY, null, null, true);
+        doExecuteSyncJob(jobId, sourceId, null, scheduledTimeRange(), null, null, true);
+    }
+
+    /**
+     * Look-back window for scheduled runs. This must cover the gap between two firings of
+     * {@code app.sync.cron}, otherwise the run silently misses papers: the default cron is weekly
+     * but this was hardcoded to DAY, so six days out of every seven were never picked up.
+     */
+    private com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange scheduledTimeRange() {
+        try {
+            return com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange
+                    .valueOf(scheduledTimeRangeName.trim().toUpperCase());
+        } catch (RuntimeException ex) {
+            log.warn("Invalid app.sync.scheduled-time-range '{}'; falling back to WEEK.", scheduledTimeRangeName);
+            return com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange.WEEK;
+        }
     }
 
     // onlyExistingTopics=true (scheduled background sync): only re-checks topics that already
@@ -250,9 +368,26 @@ public class SyncServiceImpl implements SyncService {
             Set<String> queries = new LinkedHashSet<>();
             List<Topic> officialTopics = new ArrayList<>();
             if (structuredOpenAlex) {
-                officialTopics = onlyExistingTopics
-                        ? topicRepository.findAllOfficialTopicsWithExistingPapers()
-                        : topicRepository.findAllByOpenalexIdIsNotNull();
+                if (onlyExistingTopics) {
+                    // Scheduled runs stay whole: they are incremental over topics that already have
+                    // papers, and capping them would mean the topics past the cut silently stopped
+                    // receiving updates.
+                    officialTopics = topicRepository.findOfficialTopicsWithExistingPapersAndHierarchy();
+                } else if (maxTopicsPerJob > 0) {
+                    // Take the slice the taxonomy is most overdue for, so consecutive runs walk
+                    // through every topic instead of re-syncing the same first N forever. Each run
+                    // stays short; coverage accumulates across runs.
+                    officialTopics = topicRepository.findOfficialTopicsLeastRecentlySyncedFirst(
+                            org.springframework.data.domain.PageRequest.of(0, maxTopicsPerJob));
+                    long totalOfficial = topicRepository.countByOpenalexIdIsNotNull();
+                    long neverSynced = totalOfficial - topicRepository.countByOpenalexIdIsNotNullAndLastSyncedAtIsNotNull();
+                    log.info("Syncing the {} least-recently-updated of {} official topics"
+                                    + " ({} never synced yet).",
+                            officialTopics.size(), totalOfficial, neverSynced);
+                } else {
+                    officialTopics = topicRepository.findAllOfficialTopicsWithHierarchy();
+                }
+
                 // So the frontend can show "processed / total official topics" progress
                 job.setTotalTopicsCount(officialTopics.size());
                 job.setProcessedTopicsCount(0);
@@ -308,15 +443,34 @@ public class SyncServiceImpl implements SyncService {
             java.util.concurrent.atomic.AtomicInteger addedCount = new java.util.concurrent.atomic.AtomicInteger(0);
             java.util.concurrent.atomic.AtomicInteger updatedCount = new java.util.concurrent.atomic.AtomicInteger(0);
             java.util.concurrent.atomic.AtomicInteger failedQueryCount = new java.util.concurrent.atomic.AtomicInteger(0);
+            // Circuit breaker. When the upstream API is down or out of quota, every remaining topic
+            // would still burn its full retry budget before failing — 200 topics each retrying with
+            // backoff turns a dead API into a job that runs for a very long time and achieves
+            // nothing. Enough consecutive failures and the rest of the job is abandoned instead.
+            java.util.concurrent.atomic.AtomicInteger consecutiveApiFailures = new java.util.concurrent.atomic.AtomicInteger(0);
+            java.util.concurrent.atomic.AtomicBoolean circuitOpen = new java.util.concurrent.atomic.AtomicBoolean(false);
             List<Paper> newPapers = java.util.Collections.synchronizedList(new ArrayList<>());
+            // Accumulated independently of newPapers so trend alerts still cover every topic the
+            // run touched even if paper retention hits its ceiling. A set of ids stays small.
+            Set<Integer> touchedTopicIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
             Set<String> processedDois = java.util.concurrent.ConcurrentHashMap.newKeySet();
             
             final LocalDate finalCutoffDate = cutoffDate;
             final LocalDate finalEndDate = endDate;
-            // Fetch 50 papers per topic for Sync All (covers 100% of all topics in DB), 300 papers for custom query
-            final int maxPapersPerQuery = (customQuery != null && !customQuery.trim().isEmpty()) ? 300 : 50;
+            // Papers to pull per topic/query. This used to be hardcoded to 20 while the request
+            // asked the API for per-page=200 and the loop counted the *page size* against the
+            // budget — so the cap exited after one page and every topic actually pulled 200
+            // papers, ten times the documented figure. The page size now follows the budget, so
+            // the number here is the number that gets fetched.
+            final int maxPapersPerQuery = Math.max(1, maxPapersPerTopic);
             
-            java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(5);
+            // Concurrency is bounded low on purpose. Every worker inserts into the same shared
+            // authors/keywords/journals rows, so past a couple of threads they spend more time
+            // deadlocking against each other — and redoing the rolled-back work — than they gain
+            // from running in parallel. Measured on this dataset, five workers produced deadlocks
+            // on more than half the batches; the wall-clock time got worse, not better.
+            java.util.concurrent.ExecutorService executor =
+                    java.util.concurrent.Executors.newFixedThreadPool(Math.max(1, syncWorkerThreads));
             List<java.util.concurrent.CompletableFuture<Void>> futures = new ArrayList<>();
 
             for (String query : queries) {
@@ -324,25 +478,38 @@ public class SyncServiceImpl implements SyncService {
                     log.info("Starting sync from {} for query: {}", source.getSourceName(), query);
                     int page = 1;
                     int fetchedForQuery = 0;
-                    int pageSize = "OpenAlex".equalsIgnoreCase(source.getSourceName()) ? 200 : 50;
+                    // Never request more than the budget, and stay within each API's own ceiling
+                    // (OpenAlex 200/page, Semantic Scholar 100/page).
+                    int apiMaxPageSize = "OpenAlex".equalsIgnoreCase(source.getSourceName()) ? 200 : 100;
+                    int pageSize = Math.min(maxPapersPerQuery, apiMaxPageSize);
 
                     while (fetchedForQuery < maxPapersPerQuery) {
-                        SyncJob currentJobStatus = syncJobRepository.findById(jobId).orElse(null);
-                        if (currentJobStatus != null && "CANCELED".equalsIgnoreCase(currentJobStatus.getStatus())) {
+                        // In-memory flag, not a re-read of the job row: this runs before every page
+                        // on every worker thread, and the old query per page competed with the
+                        // batch saves for connections.
+                        if (syncJobState.isCancelRequested(jobId)) {
                             log.warn("Sync job {} was manually stopped.", jobId);
+                            return;
+                        }
+                        if (circuitOpen.get()) {
                             return;
                         }
 
                         String url = null;
                         String responseBody = null;
                         try {
-                            url = buildApiUrl(source, query, page, finalCutoffDate, finalEndDate);
+                            url = buildApiUrl(source, query, page, pageSize, finalCutoffDate, finalEndDate);
                             responseBody = fetchFromApi(url);
                         } catch (Exception e) {
                             log.error("Error calling API for query {}", query, e);
                             failedQueryCount.incrementAndGet();
+                            tripCircuitIfUpstreamIsDown(jobId, consecutiveApiFailures, circuitOpen);
                             break;
                         }
+
+                        // A reply means the upstream is answering again, so the failure streak that
+                        // feeds the circuit breaker starts over.
+                        consecutiveApiFailures.set(0);
 
                         if (responseBody == null || responseBody.isBlank()) {
                             break;
@@ -351,24 +518,27 @@ public class SyncServiceImpl implements SyncService {
                         int[] counts = new int[2];
                         List<Paper> batchNewPapers = new ArrayList<>();
                         try {
-                            boolean continuePagination = applicationContext
-                                    .getBean(SyncServiceImpl.class)
-                                    .saveResultsInTransaction(
-                                            responseBody,
-                                            source,
-                                            query,
-                                            counts,
-                                            batchNewPapers,
-                                            finalCutoffDate,
-                                            processedDois,
-                                            authorIdCache,
-                                            topicIdCache,
-                                            keywordIdCache,
-                                            journalIdCache,
-                                            fieldIdCache,
-                                            jobId);
+                            final String rawResponse = responseBody;
+                            boolean continuePagination = saveBatchWithLockRetry(
+                                    () -> applicationContext
+                                            .getBean(SyncServiceImpl.class)
+                                            .saveResultsInTransaction(
+                                                    rawResponse,
+                                                    source,
+                                                    query,
+                                                    counts,
+                                                    batchNewPapers,
+                                                    finalCutoffDate,
+                                                    processedDois,
+                                                    authorIdCache,
+                                                    topicIdCache,
+                                                    keywordIdCache,
+                                                    journalIdCache,
+                                                    fieldIdCache,
+                                                    jobId),
+                                    query);
 
-                            newPapers.addAll(batchNewPapers);
+                            collectNewPapers(newPapers, touchedTopicIds, batchNewPapers);
                             addedCount.addAndGet(counts[0]);
                             updatedCount.addAndGet(counts[1]);
                             fetchedForQuery += pageSize;
@@ -390,8 +560,13 @@ public class SyncServiceImpl implements SyncService {
                         }
 
                         page++;
-                        // Prevent HTTP 429
-                        try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                        // Only pause when another page is actually coming. This used to run at the
+                        // end of every iteration including the last one, so each query paid a full
+                        // second of sleep purely to exit its loop — with one page per topic that
+                        // was a wasted second per topic, and it dominated the job's runtime.
+                        if (fetchedForQuery < maxPapersPerQuery) {
+                            try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                        }
                     }
                     if (fetchedForQuery >= maxPapersPerQuery) {
                         log.info("Reached max paper budget ({}) for query: {}", maxPapersPerQuery, query);
@@ -406,34 +581,62 @@ public class SyncServiceImpl implements SyncService {
                 futures.add(future);
             }
 
-            for (Topic officialTopic : officialTopics) {
-                final Integer officialTopicId = officialTopic.getTopicId();
-                final String officialTopicOpenalexId = officialTopic.getOpenalexId();
-                final String officialTopicLabel = officialTopicOpenalexId + " (" + officialTopic.getTopicName() + ")";
+            // OpenAlex accepts an OR of topic ids in a single filter, so a batch of N topics costs
+            // one request instead of N — the difference between minutes and hours across the full
+            // 4,500-topic taxonomy. Batches are built within a single research field: papers still
+            // attach to their own topics from their own metadata, and keeping one field per batch
+            // means the field stamped on a new paper stays correct.
+            List<List<Topic>> topicBatches = batchTopicsByField(officialTopics, topicsPerRequest);
+            log.info("Sweeping {} topics in {} batched request(s).", officialTopics.size(), topicBatches.size());
+
+            for (List<Topic> topicBatch : topicBatches) {
+                final List<Integer> batchTopicIds = topicBatch.stream().map(Topic::getTopicId).toList();
+                final Integer representativeTopicId = batchTopicIds.get(0);
+                final String batchFilter = topicBatch.stream()
+                        .map(Topic::getOpenalexId)
+                        .collect(java.util.stream.Collectors.joining("|"));
+                final String officialTopicLabel = topicBatch.size() + " topics starting with "
+                        + topicBatch.get(0).getTopicName();
+                // Papers pulled per batched request. This is the knob that decides how heavy a run
+                // is: the number of topics only costs requests, whereas every paper returned costs
+                // parsing and database writes. Letting a batch return a full page of 200 made a
+                // 500-topic sweep take over ten minutes even though the requests themselves were
+                // fast, because the run then had thousands of papers to write.
+                final int batchBudget = Math.min(200, Math.max(1, papersPerRequest));
 
                 java.util.concurrent.CompletableFuture<Void> future = java.util.concurrent.CompletableFuture.runAsync(() -> {
-                    log.info("Starting structured sync from {} for topic: {}", source.getSourceName(), officialTopicLabel);
+                    log.info("Starting structured sync from {} for {}", source.getSourceName(), officialTopicLabel);
                     int page = 1;
                     int fetchedForQuery = 0;
-                    int pageSize = 200; // OpenAlex only in this branch
+                    int pageSize = Math.min(batchBudget, 200); // OpenAlex only in this branch
 
-                    while (fetchedForQuery < maxPapersPerQuery) {
-                        SyncJob currentJobStatus = syncJobRepository.findById(jobId).orElse(null);
-                        if (currentJobStatus != null && "CANCELED".equalsIgnoreCase(currentJobStatus.getStatus())) {
+                    while (fetchedForQuery < batchBudget) {
+                        // In-memory flag, not a re-read of the job row: this runs before every page
+                        // on every worker thread, and the old query per page competed with the
+                        // batch saves for connections.
+                        if (syncJobState.isCancelRequested(jobId)) {
                             log.warn("Sync job {} was manually stopped.", jobId);
+                            return;
+                        }
+                        if (circuitOpen.get()) {
                             return;
                         }
 
                         String url;
                         String responseBody;
                         try {
-                            url = buildStructuredOpenAlexUrl(source, officialTopicOpenalexId, page, finalCutoffDate, finalEndDate);
+                            url = buildStructuredOpenAlexUrl(source, batchFilter, page, pageSize, finalCutoffDate, finalEndDate);
                             responseBody = fetchFromApi(url);
                         } catch (Exception e) {
                             log.error("Error calling API for topic {}", officialTopicLabel, e);
                             failedQueryCount.incrementAndGet();
+                            tripCircuitIfUpstreamIsDown(jobId, consecutiveApiFailures, circuitOpen);
                             break;
                         }
+
+                        // A reply means the upstream is answering again, so the failure streak that
+                        // feeds the circuit breaker starts over.
+                        consecutiveApiFailures.set(0);
 
                         if (responseBody == null || responseBody.isBlank()) {
                             break;
@@ -442,24 +645,27 @@ public class SyncServiceImpl implements SyncService {
                         int[] counts = new int[2];
                         List<Paper> batchNewPapers = new ArrayList<>();
                         try {
-                            boolean continuePagination = applicationContext
-                                    .getBean(SyncServiceImpl.class)
-                                    .saveResultsInTransaction(
-                                            responseBody,
-                                            source,
-                                            officialTopicId,
-                                            counts,
-                                            batchNewPapers,
-                                            finalCutoffDate,
-                                            processedDois,
-                                            authorIdCache,
-                                            topicIdCache,
-                                            keywordIdCache,
-                                            journalIdCache,
-                                            fieldIdCache,
-                                            jobId);
+                            final String rawResponse = responseBody;
+                            boolean continuePagination = saveBatchWithLockRetry(
+                                    () -> applicationContext
+                                            .getBean(SyncServiceImpl.class)
+                                            .saveResultsInTransaction(
+                                                    rawResponse,
+                                                    source,
+                                                    representativeTopicId,
+                                                    counts,
+                                                    batchNewPapers,
+                                                    finalCutoffDate,
+                                                    processedDois,
+                                                    authorIdCache,
+                                                    topicIdCache,
+                                                    keywordIdCache,
+                                                    journalIdCache,
+                                                    fieldIdCache,
+                                                    jobId),
+                                    officialTopicLabel);
 
-                            newPapers.addAll(batchNewPapers);
+                            collectNewPapers(newPapers, touchedTopicIds, batchNewPapers);
                             addedCount.addAndGet(counts[0]);
                             updatedCount.addAndGet(counts[1]);
                             fetchedForQuery += pageSize;
@@ -478,27 +684,26 @@ public class SyncServiceImpl implements SyncService {
                         }
 
                         page++;
-                        try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-                    }
-                    if (fetchedForQuery >= maxPapersPerQuery) {
-                        log.info("Reached max paper budget ({}) for topic: {}", maxPapersPerQuery, officialTopicLabel);
+                        // Same as the query branch above: only wait when another page follows.
+                        // Sync All runs through this branch, so the wasted second was being paid
+                        // once per topic across the whole taxonomy sweep.
+                        if (fetchedForQuery < batchBudget) {
+                            try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                        }
                     }
 
-                    // Backfill resumability: mark this topic as swept so a later re-run only
-                    // needs to process topics that haven't been synced yet.
+                    // Every topic in the batch was covered by the request, so all of them advance
+                    // the rotation cursor together.
                     try {
-                        topicRepository.findById(officialTopicId).ifPresent(t -> {
-                            t.setLastSyncedAt(LocalDateTime.now());
-                            topicRepository.save(t);
-                        });
+                        topicRepository.markSyncedAll(batchTopicIds, LocalDateTime.now());
                     } catch (Exception e) {
-                        log.warn("Failed to update lastSyncedAt for topic {}", officialTopicLabel, e);
+                        log.warn("Failed to update lastSyncedAt for {}", officialTopicLabel, e);
                     }
 
-                    // Atomic UPDATE, not read-modify-write: many topic futures increment this
+                    // Atomic UPDATE, not read-modify-write: many batch futures update this
                     // concurrently for the same job.
                     try {
-                        syncJobRepository.incrementProcessedTopicsCount(jobId);
+                        syncJobRepository.addProcessedTopicsCount(jobId, batchTopicIds.size());
                     } catch (Exception e) {
                         log.warn("Failed to increment processed topic count for job {}", jobId, e);
                     }
@@ -513,12 +718,35 @@ public class SyncServiceImpl implements SyncService {
                 executor.shutdown();
             }
 
+            if (syncJobState.isCancelRequested(jobId)) {
+                // stopSyncJob already wrote CANCELED and finishedAt. Falling through to the verdict
+                // below would relabel the job SUCCESS — failedQueryCount is zero when the workers
+                // simply returned early — and erase the fact that an admin stopped it. Papers saved
+                // before the stop are real data and stay; the notification pass is skipped on
+                // purpose, since blasting out alerts is exactly the work Stop was pressed to halt.
+                log.info("Sync job {} was canceled; keeping CANCELED status and skipping notifications.", jobId);
+                syncJobState.clear(jobId);
+                return;
+            }
+
             // FIX #4: PARTIAL_SUCCESS when some queries failed but data was still saved
             int totalQueries = structuredOpenAlex ? officialTopics.size() : queries.size();
             int failed = failedQueryCount.get();
-            if (failed > 0 && (addedCount.get() > 0 || updatedCount.get() > 0)) {
+            if (circuitOpen.get()) {
+                // Distinct from a plain failure count so the log tells an admin the run was cut
+                // short deliberately rather than that every single topic happened to fail.
+                job.setStatus(addedCount.get() > 0 || updatedCount.get() > 0 ? "PARTIAL_SUCCESS" : "FAILED");
+                job.setErrorMessage("Stopped early: the data source stopped responding after "
+                        + API_FAILURE_CIRCUIT_THRESHOLD + " consecutive failures. "
+                        + "Anything fetched before that was saved.");
+            } else if (failed > 0 && (addedCount.get() > 0 || updatedCount.get() > 0)) {
                 job.setStatus("PARTIAL_SUCCESS");
-                job.setErrorMessage(failed + "/" + totalQueries + " queries failed (rate limit or API error). Data from successful queries was saved.");
+                // Deliberately not blaming the API: this counter also covers failures while saving
+                // a batch, and saying "rate limit or API error" for a database problem sent
+                // diagnosis in the wrong direction. The log has the actual cause per query.
+                job.setErrorMessage(failed + "/" + totalQueries
+                        + " queries did not complete (see server log for the cause of each)."
+                        + " Data from the successful queries was saved.");
             } else if (failed > 0 && addedCount.get() == 0 && updatedCount.get() == 0) {
                 job.setStatus("FAILED");
                 job.setErrorMessage("All " + failed + " queries failed. No data was saved.");
@@ -542,8 +770,17 @@ public class SyncServiceImpl implements SyncService {
                 log.info("Creating notifications for {} new papers", newPapers.size());
                 notificationService.notifyUsersForNewPapers(newPapers);
             }
+            // Driven by the ids gathered during the run, not by the retained paper list, so trend
+            // alerts stay complete even when paper retention was capped.
+            dashboardService.checkAndNotifyTrendingTopics(touchedTopicIds);
 
-        } catch (Exception ex) {
+            syncJobState.clear(jobId);
+
+        // Throwable, not Exception: an Error such as OutOfMemoryError would otherwise escape without
+        // ever writing a final status, leaving the row at RUNNING and blocking every later sync for
+        // this source. The row is finalised first, then Errors are rethrown to the thread's handler.
+        } catch (Throwable ex) {
+            syncJobState.clear(jobId);
             log.error("Failed to run sync job id: " + job.getSyncJobId(), ex);
             job.setStatus("FAILED");
             // Extract meaningful error message
@@ -561,6 +798,12 @@ public class SyncServiceImpl implements SyncService {
             syncJobRepository.findById(job.getSyncJobId())
                     .ifPresent(fresh -> job.setProcessedTopicsCount(fresh.getProcessedTopicsCount()));
             syncJobRepository.save(job);
+
+            // The job row is safely closed out now. An Error means the JVM is in a state this
+            // method has no business papering over, so let it continue up the stack.
+            if (ex instanceof Error) {
+                throw (Error) ex;
+            }
         }
     }
 
@@ -592,7 +835,28 @@ public class SyncServiceImpl implements SyncService {
     public SyncJobResponse retrySyncJob(Long jobId, Long userId) {
         SyncJob job = syncJobRepository.findById(jobId)
                 .orElseThrow(() -> new AppException(ErrorCode.SYNC_JOB_NOT_FOUND));
-        return syncFromSource(job.getApiSource().getSourceId(), userId, null, com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange.ALL, null, null);
+
+        // Re-run what the original job actually ran. This previously passed a hardcoded
+        // (null query, TimeRange.ALL), so retrying any job — however small — kicked off a full
+        // unbounded sweep of the whole taxonomy instead.
+        com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange timeRange = null;
+        if (job.getTimeRange() != null) {
+            try {
+                timeRange = com.publication_trend_tracking_system.sever_web_app.enums.SyncTimeRange
+                        .valueOf(job.getTimeRange());
+            } catch (IllegalArgumentException ex) {
+                log.warn("Sync job {} has an unrecognised timeRange '{}'; retrying without one.",
+                        jobId, job.getTimeRange());
+            }
+        }
+
+        return syncFromSource(
+                job.getApiSource().getSourceId(),
+                userId,
+                job.getCustomQuery(),
+                timeRange,
+                job.getFromDate(),
+                job.getToDate());
     }
 
     @Transactional
@@ -680,11 +944,11 @@ public class SyncServiceImpl implements SyncService {
         }
     }
 
-    private String buildApiUrl(ApiSource source, String query, int page, LocalDate cutoffDate, LocalDate endDate) throws Exception {
+    private String buildApiUrl(ApiSource source, String query, int page, int pageSize, LocalDate cutoffDate, LocalDate endDate) throws Exception {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
         if ("OpenAlex".equalsIgnoreCase(source.getSourceName())) {
             // FIX #5: Use fixed mailto for OpenAlex polite pool identification
-            String url = source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=200&page=" + page + "&mailto=ptt.sync@university.edu";
+            String url = source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=" + pageSize + "&page=" + page + "&mailto=ptt.sync@university.edu";
             
             if (cutoffDate != null || endDate != null) {
                 String filterFrom = cutoffDate != null ? cutoffDate.toString() : "";
@@ -701,8 +965,8 @@ public class SyncServiceImpl implements SyncService {
             url += "&sort=publication_date:desc";
             return url;
         } else if ("Semantic Scholar".equalsIgnoreCase(source.getSourceName())) {
-            int offset = (page - 1) * 50;
-            String url = source.getBaseUrl() + "/v1/paper/search?query=" + encodedQuery + "&limit=50&offset=" + offset + "&fields=title,abstract,authors,journal,year,externalIds,citationCount,fieldsOfStudy";
+            int offset = (page - 1) * pageSize;
+            String url = source.getBaseUrl() + "/v1/paper/search?query=" + encodedQuery + "&limit=" + pageSize + "&offset=" + offset + "&fields=title,abstract,authors,journal,year,externalIds,citationCount,fieldsOfStudy,isOpenAccess";
             
             if (cutoffDate != null || endDate != null) {
                 String fromYear = cutoffDate != null ? String.valueOf(cutoffDate.getYear()) : "";
@@ -722,7 +986,7 @@ public class SyncServiceImpl implements SyncService {
     // the official topic taxonomy. Iterates by canonical topic ID instead of free-text search=,
     // so coverage matches the seeded 4,516-topic taxonomy exactly. Custom-query syncs and
     // Semantic Scholar keep using buildApiUrl() above, unchanged.
-    private String buildStructuredOpenAlexUrl(ApiSource source, String topicOpenalexId, int page, LocalDate cutoffDate, LocalDate endDate) {
+    private String buildStructuredOpenAlexUrl(ApiSource source, String topicOpenalexId, int page, int pageSize, LocalDate cutoffDate, LocalDate endDate) {
         StringBuilder filter = new StringBuilder("topics.id:").append(topicOpenalexId);
         if (cutoffDate != null) {
             filter.append(",from_publication_date:").append(cutoffDate);
@@ -731,7 +995,39 @@ public class SyncServiceImpl implements SyncService {
             filter.append(",to_publication_date:").append(endDate);
         }
         return source.getBaseUrl() + "/works?filter=" + filter
-                + "&sort=publication_date:desc&per-page=200&page=" + page + "&mailto=ptt.sync@university.edu";
+                + "&sort=publication_date:desc&per-page=" + pageSize + "&page=" + page + "&mailto=ptt.sync@university.edu";
+    }
+
+    // Upper bound on how many new Paper entities a single job keeps in memory for the notification
+    // pass at the end. Without it the list grew for the entire run — a wide sweep could exhaust the
+    // heap before it ever reached the notification step. Well above what a normal run produces, so
+    // in practice this only ever engages on a pathological job.
+    private static final int MAX_PAPERS_RETAINED_FOR_NOTIFICATION = 20_000;
+
+    private void collectNewPapers(List<Paper> retained, Set<Integer> touchedTopicIds, List<Paper> batch) {
+        if (batch.isEmpty()) {
+            return;
+        }
+        for (Paper paper : batch) {
+            if (paper.getTopics() != null) {
+                for (Topic topic : paper.getTopics()) {
+                    touchedTopicIds.add(topic.getTopicId());
+                }
+            }
+        }
+        synchronized (retained) {
+            int room = MAX_PAPERS_RETAINED_FOR_NOTIFICATION - retained.size();
+            if (room <= 0) {
+                return;
+            }
+            if (batch.size() <= room) {
+                retained.addAll(batch);
+            } else {
+                retained.addAll(batch.subList(0, room));
+                log.warn("Reached the {}-paper notification cap; later new papers in this job will not"
+                        + " generate per-paper notifications.", MAX_PAPERS_RETAINED_FOR_NOTIFICATION);
+            }
+        }
     }
 
     private String extractShortId(String fullUri) {
@@ -753,9 +1049,15 @@ public class SyncServiceImpl implements SyncService {
         ID cached = cache.get(cacheKey);
         if (cached != null) return cached;
 
+        // Tracks whether this call is the one that inserted the row, so only a genuinely new id
+        // gets tied to the outcome of the current transaction.
+        boolean[] insertedHere = {false};
+
         ID id = finder.get().orElseGet(() -> {
             try {
-                return creator.get();
+                ID created = creator.get();
+                insertedHere[0] = true;
+                return created;
             } catch (org.springframework.dao.DataIntegrityViolationException e) {
                 // Lost a race with another thread inserting the same unique name/value;
                 // the row now exists, so re-fetch it instead of failing this paper.
@@ -764,7 +1066,29 @@ public class SyncServiceImpl implements SyncService {
         });
 
         ID existing = cache.putIfAbsent(cacheKey, id);
-        return existing != null ? existing : id;
+        if (existing != null) {
+            return existing;
+        }
+
+        // The row we just inserted only exists for other threads once this transaction commits.
+        // A batch that rolls back mid-way used to leave its ids cached for the rest of the job, so
+        // every later batch resolved the key to a row that no longer existed and failed on the
+        // foreign key. Drop the entry unless the transaction actually committed.
+        if (insertedHere[0]
+                && org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCompletion(int status) {
+                            if (status != STATUS_COMMITTED) {
+                                // Value-matched removal: never evict an entry a different thread
+                                // committed for the same key in the meantime.
+                                cache.remove(cacheKey, id);
+                            }
+                        }
+                    });
+        }
+        return id;
     }
 
     // Read-only counterpart (no creator): used for lookups that should NOT auto-create a row
@@ -797,6 +1121,119 @@ public class SyncServiceImpl implements SyncService {
             }
         }
         lastApiCallTime = System.currentTimeMillis();
+    }
+
+    /**
+     * Waits before the next attempt, doubling each time with random jitter.
+     *
+     * <p>A flat delay makes every worker that failed at the same moment retry at the same moment,
+     * so the API gets hit by the whole pool in lockstep and the retries themselves keep it
+     * overloaded. Doubling backs off a struggling upstream instead of hammering it, and the jitter
+     * spreads the workers out so they stop moving as a block.
+     */
+    private void backoffBeforeRetry(int attemptIndex) {
+        long base = Math.min(RETRY_BASE_DELAY_MS * (1L << Math.min(attemptIndex, 4)), RETRY_MAX_DELAY_MS);
+        long jitter = java.util.concurrent.ThreadLocalRandom.current().nextLong(base / 2 + 1);
+        try {
+            Thread.sleep(base / 2 + jitter);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static final long RETRY_BASE_DELAY_MS = 1000;
+    private static final long RETRY_MAX_DELAY_MS = 16_000;
+
+    // Worker threads insert into the same authors/keywords/journals rows concurrently, so SQL
+    // Server periodically picks one transaction as a deadlock victim and rolls it back. That is
+    // normal under concurrent writes and the victim is meant to be retried — before this, every
+    // deadlock was counted as a failed query and its whole page of papers was dropped.
+    private static final int SAVE_DEADLOCK_MAX_ATTEMPTS = 4;
+
+    /**
+     * Splits topics into request-sized groups that each stay within one research field.
+     *
+     * <p>Grouping by field is what makes batching safe: the field stamped on a newly created paper
+     * is derived from the topic the request was built around, so mixing fields in one request would
+     * mislabel papers. Topics with no field resolve into their own group rather than being dropped.
+     */
+    private List<List<Topic>> batchTopicsByField(List<Topic> topics, int batchSize) {
+        int size = Math.max(1, batchSize);
+        java.util.Map<String, List<Topic>> byField = new java.util.LinkedHashMap<>();
+        for (Topic topic : topics) {
+            if (topic.getOpenalexId() == null) {
+                continue;
+            }
+            TopicField field = topic.getSubfield() != null ? topic.getSubfield().getField() : null;
+            String key = field != null && field.getOpenalexId() != null
+                    ? field.getOpenalexId()
+                    : "no-field:" + topic.getTopicId();
+            byField.computeIfAbsent(key, k -> new ArrayList<>()).add(topic);
+        }
+
+        List<List<Topic>> batches = new ArrayList<>();
+        for (List<Topic> group : byField.values()) {
+            for (int start = 0; start < group.size(); start += size) {
+                batches.add(new ArrayList<>(group.subList(start, Math.min(start + size, group.size()))));
+            }
+        }
+        return batches;
+    }
+
+    private static boolean isLockConflict(Throwable error) {
+        for (Throwable t = error; t != null; t = t.getCause()) {
+            if (t instanceof org.springframework.dao.PessimisticLockingFailureException
+                    || t instanceof org.hibernate.exception.LockAcquisitionException) {
+                return true;
+            }
+            if (t.getCause() == t) {
+                break;
+            }
+        }
+        return false;
+    }
+
+    /** Runs a batch save, retrying it when the database rolls it back as a deadlock victim. */
+    private boolean saveBatchWithLockRetry(java.util.function.BooleanSupplier save, String label) {
+        RuntimeException lastFailure = null;
+        for (int attempt = 1; attempt <= SAVE_DEADLOCK_MAX_ATTEMPTS; attempt++) {
+            try {
+                return save.getAsBoolean();
+            } catch (RuntimeException e) {
+                if (!isLockConflict(e)) {
+                    throw e;
+                }
+                lastFailure = e;
+                log.warn("Deadlock while saving batch for {} (attempt {}/{}); retrying.",
+                        label, attempt, SAVE_DEADLOCK_MAX_ATTEMPTS);
+                // Short randomised pause so the retrying threads don't collide again immediately.
+                try {
+                    Thread.sleep(java.util.concurrent.ThreadLocalRandom.current().nextLong(100, 400) * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
+        throw lastFailure;
+    }
+
+    // Consecutive per-query API failures before a job gives up on the rest of its work. High enough
+    // that a few unlucky topics don't end an otherwise healthy run, low enough that a dead upstream
+    // is noticed within seconds rather than after grinding through every remaining topic.
+    private static final int API_FAILURE_CIRCUIT_THRESHOLD = 10;
+
+    private void tripCircuitIfUpstreamIsDown(
+            Long jobId,
+            java.util.concurrent.atomic.AtomicInteger consecutiveApiFailures,
+            java.util.concurrent.atomic.AtomicBoolean circuitOpen) {
+
+        if (consecutiveApiFailures.incrementAndGet() >= API_FAILURE_CIRCUIT_THRESHOLD
+                && circuitOpen.compareAndSet(false, true)) {
+            log.error("Sync job {}: {} consecutive API failures — abandoning the remaining queries"
+                    + " instead of retrying against an upstream that is not answering.",
+                    jobId, API_FAILURE_CIRCUIT_THRESHOLD);
+        }
     }
 
     private String fetchFromApi(String url) {
@@ -834,16 +1271,24 @@ public class SyncServiceImpl implements SyncService {
                 if (i == maxRetries - 1) {
                     throw new RuntimeException("API Rate Limit Exceeded (429) after " + maxRetries + " attempts.", e);
                 }
-                try { Thread.sleep(2000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                backoffBeforeRetry(i);
             } catch (Exception e) {
                 log.warn("API request failed (attempt {}/{}): {}", i + 1, maxRetries, e.getMessage());
                 if (i == maxRetries - 1) {
                     throw new RuntimeException("API request failed after " + maxRetries + " attempts: " + e.getMessage(), e);
                 }
-                try { Thread.sleep(2000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                backoffBeforeRetry(i);
             }
         }
         return null;
+    }
+
+    // Some OpenAlex/Semantic Scholar records carry garbage-length values in fields that are
+    // normally short (e.g. a corporate "author" whose display_name is actually a full sentence),
+    // which otherwise crashes the whole batch with a SQL Server truncation error on insert.
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) return value;
+        return value.substring(0, maxLength - 3) + "...";
     }
 
     private boolean parseAndSaveOpenAlex(
@@ -881,6 +1326,10 @@ public class SyncServiceImpl implements SyncService {
                 ParsedPaperDTO dto = new ParsedPaperDTO();
                 dto.title = work.path("title").asText(null);
                 if (dto.title == null || dto.title.isBlank()) continue;
+                // OpenAlex wraps species/gene names in italics etc. (<i>, <b>, <scp>...) — we
+                // display titles as plain text everywhere, so strip the markup rather than show
+                // literal "<i>...</i>" to the user.
+                dto.title = dto.title.replaceAll("<[^>]+>", "").trim();
                 if (dto.title.length() > 250) dto.title = dto.title.substring(0, 247) + "...";
                 
                 String doiUrl = work.path("doi").asText(null);
@@ -889,17 +1338,18 @@ public class SyncServiceImpl implements SyncService {
                 int rawYear = work.path("publication_year").asInt(0);
                 dto.year = rawYear > 0 ? rawYear : null;
                 dto.citations = work.path("cited_by_count").asInt(0);
-                
+                dto.isOpenAccess = work.path("open_access").path("is_oa").asBoolean(false);
+
                 JsonNode abstractNode = work.path("abstract_inverted_index");
                 dto.paperAbstract = (!abstractNode.isMissingNode() && abstractNode.isObject()) ? reconstructAbstractFromJson(abstractNode) : "";
                 dto.sourceUrl = work.path("id").asText("");
-                dto.journalName = work.path("primary_location").path("source").path("display_name").asText(null);
-                
+                dto.journalName = truncate(work.path("primary_location").path("source").path("display_name").asText(null), 255);
+
                 JsonNode authorships = work.path("authorships");
                 if (authorships.isArray()) {
                     for (JsonNode authorship : authorships) {
                         String authorName = authorship.path("author").path("display_name").asText(null);
-                        if (authorName != null && !authorName.isBlank()) dto.authorNames.add(authorName.trim());
+                        if (authorName != null && !authorName.isBlank()) dto.authorNames.add(truncate(authorName.trim(), 255));
                     }
                 }
                 // Concepts (legacy taxonomy) are kept only for keyword extraction (level > 1).
@@ -910,7 +1360,7 @@ public class SyncServiceImpl implements SyncService {
                         int level = concept.path("level").asInt(99);
                         String conceptName = concept.path("display_name").asText(null);
                         if (level > 1 && conceptName != null && !conceptName.isBlank()) {
-                            dto.keywordNames.add(conceptName.trim());
+                            dto.keywordNames.add(truncate(conceptName.trim(), 255));
                         }
                     }
                 }
@@ -928,7 +1378,7 @@ public class SyncServiceImpl implements SyncService {
                     for (JsonNode keywordNode : keywordsNode) {
                         String kwName = keywordNode.path("display_name").asText(null);
                         if (kwName != null && !kwName.isBlank()) {
-                            dto.keywordNames.add(kwName.trim());
+                            dto.keywordNames.add(truncate(kwName.trim(), 255));
                         }
                     }
                 }
@@ -979,20 +1429,22 @@ public class SyncServiceImpl implements SyncService {
                 ParsedPaperDTO dto = new ParsedPaperDTO();
                 dto.title = paperNode.path("title").asText(null);
                 if (dto.title == null || dto.title.isBlank()) continue;
+                dto.title = dto.title.replaceAll("<[^>]+>", "").trim();
                 if (dto.title.length() > 250) dto.title = dto.title.substring(0, 247) + "...";
                 dto.paperAbstract = paperNode.path("abstract").asText("");
                 // FIX #2: Don't default to current year — null is better for trend accuracy
                 dto.year = year > 0 ? year : null;
                 dto.citations = paperNode.path("citationCount").asInt(0);
+                dto.isOpenAccess = paperNode.path("isOpenAccess").asBoolean(false);
                 dto.doi = paperNode.path("externalIds").path("DOI").asText(null);
                 if (dto.doi == null || dto.doi.isBlank()) dto.doi = paperNode.path("externalIds").path("doi").asText(null);
                 dto.sourceUrl = "https://www.semanticscholar.org/paper/" + paperNode.path("paperId").asText("");
-                dto.journalName = paperNode.path("journal").path("name").asText(null);
+                dto.journalName = truncate(paperNode.path("journal").path("name").asText(null), 255);
                 JsonNode authorsNode = paperNode.path("authors");
                 if (authorsNode.isArray()) {
                     for (JsonNode author : authorsNode) {
                         String authorName = author.path("name").asText(null);
-                        if (authorName != null && !authorName.isBlank()) dto.authorNames.add(authorName.trim());
+                        if (authorName != null && !authorName.isBlank()) dto.authorNames.add(truncate(authorName.trim(), 255));
                     }
                 }
 
@@ -1032,6 +1484,7 @@ public class SyncServiceImpl implements SyncService {
             paper.setPublicationYear(dto.year);
             paper.setSourceUrl(dto.sourceUrl);
             paper.setCitationCount(dto.citations);
+            paper.setIsOpenAccess(dto.isOpenAccess);
             paper.setApiSource(source);
             paper.setPublicationType(PaperPublicationType.JOURNAL_ARTICLE);
             paper.setVisibilityStatus(PaperVisibilityStatus.VISIBLE);
@@ -1043,6 +1496,7 @@ public class SyncServiceImpl implements SyncService {
             }
             if (dto.paperAbstract != null && !dto.paperAbstract.isBlank()) paper.setPaperAbstract(dto.paperAbstract);
             paper.setCitationCount(dto.citations);
+            paper.setIsOpenAccess(dto.isOpenAccess);
             paper.setTitle(dto.title.trim());
             paper.setSourceUrl(dto.sourceUrl);
             counts[1]++;

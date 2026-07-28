@@ -136,6 +136,17 @@ public class AdminSyncController {
                 .build();
     }
 
+    // Stop halts a run but keeps its record; this removes the record entirely once it is no longer
+    // running. Papers already synced by the job are kept — they are real data, not job scratch.
+    @DeleteMapping("/jobs/{jobId}")
+    public ApiResponse<Void> deleteSyncJob(@PathVariable Long jobId) {
+        syncService.deleteSyncJob(jobId);
+        return ApiResponse.<Void>builder()
+                .code(1000)
+                .message("Sync job deleted")
+                .build();
+    }
+
     @GetMapping("/scheduler/status")
     public ApiResponse<Boolean> getSchedulerStatus() {
         return ApiResponse.<Boolean>builder()
@@ -161,6 +172,15 @@ public class AdminSyncController {
         return ApiResponse.<Void>builder()
                 .code(1000)
                 .message("OpenAlex topic taxonomy seed job started in background")
+                .build();
+    }
+
+    @PostMapping("/seed-topics/cancel")
+    public ApiResponse<Void> cancelSeedTopics() {
+        topicSeedService.cancelSeed();
+        return ApiResponse.<Void>builder()
+                .code(1000)
+                .message("Cancel signal sent to topic taxonomy seed")
                 .build();
     }
 

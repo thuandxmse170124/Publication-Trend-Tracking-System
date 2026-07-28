@@ -10,6 +10,25 @@ import java.util.Optional;
 
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, Integer> {
+
+    // One UPDATE instead of loading the entity and saving it back, which cost two round trips per
+    // topic plus a managed entity the sync had no other use for.
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+            "UPDATE Topic t SET t.lastSyncedAt = :syncedAt WHERE t.topicId = :topicId")
+    void markSynced(
+            @org.springframework.data.repository.query.Param("topicId") Integer topicId,
+            @org.springframework.data.repository.query.Param("syncedAt") java.time.LocalDateTime syncedAt);
+
+    // Batched requests cover many topics at once; one statement advances all of them.
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+            "UPDATE Topic t SET t.lastSyncedAt = :syncedAt WHERE t.topicId IN :topicIds")
+    void markSyncedAll(
+            @org.springframework.data.repository.query.Param("topicIds") java.util.Collection<Integer> topicIds,
+            @org.springframework.data.repository.query.Param("syncedAt") java.time.LocalDateTime syncedAt);
     Optional<Topic> findFirstByTopicNameIgnoreCase(String topicName);
     Optional<Topic> findByTopicNameIgnoreCase(String topicName);
     java.util.List<Topic> findAllByTopicNameInIgnoreCase(java.util.Collection<String> topicNames);
@@ -25,8 +44,33 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
     java.util.List<Topic> findAllByOpenalexIdIsNotNull();
     long countByOpenalexIdIsNotNull();
 
+    // Drives the "N of M topics covered so far" progress line in the sync log.
+    long countByOpenalexIdIsNotNullAndLastSyncedAtIsNotNull();
+
     // Backfill resumability: official topics not yet swept by the full-history sync job
     java.util.List<Topic> findAllByOpenalexIdIsNotNullAndLastSyncedAtIsNull();
+
+    // Least-recently-swept first, never-swept before everything else. A capped run used to take
+    // whichever topics happened to come first, so it re-synced the same handful every time and the
+    // rest of the taxonomy was never reached at all. Ordering by last sweep turns the cap into a
+    // rotating cursor: each run continues where the previous one stopped, and repeated runs cover
+    // the whole taxonomy without any single run being heavy.
+    // subfield/field are fetched with the topic: the sync groups topics by field after the session
+    // that loaded them has closed, and touching a lazy proxy there fails with "no session".
+    @Query("SELECT t FROM Topic t LEFT JOIN FETCH t.subfield s LEFT JOIN FETCH s.field "
+            + "WHERE t.openalexId IS NOT NULL "
+            + "ORDER BY CASE WHEN t.lastSyncedAt IS NULL THEN 0 ELSE 1 END, t.lastSyncedAt ASC")
+    java.util.List<Topic> findOfficialTopicsLeastRecentlySyncedFirst(
+            org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT t FROM Topic t LEFT JOIN FETCH t.subfield s LEFT JOIN FETCH s.field "
+            + "WHERE t.openalexId IS NOT NULL")
+    java.util.List<Topic> findAllOfficialTopicsWithHierarchy();
+
+    @Query("SELECT t FROM Topic t LEFT JOIN FETCH t.subfield s LEFT JOIN FETCH s.field "
+            + "WHERE t.openalexId IS NOT NULL "
+            + "AND EXISTS (SELECT 1 FROM Paper p JOIN p.topics pt WHERE pt.topicId = t.topicId)")
+    java.util.List<Topic> findOfficialTopicsWithExistingPapersAndHierarchy();
 
     // Scheduled background sync (Implementation Plan v3 optimization): only re-check topics that
     // already have at least one paper, instead of sweeping the entire 4,510-topic taxonomy on
