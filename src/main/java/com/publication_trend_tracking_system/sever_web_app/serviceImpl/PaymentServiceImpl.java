@@ -49,6 +49,18 @@ public class PaymentServiceImpl
             );
         }
 
+        // A payment link was already created for this invoice earlier — PayOS rejects a second
+        // create() call for the same orderCode ("Payment order already exists"), and its
+        // get-by-orderCode API doesn't return the checkoutUrl/qrCode back, so the only way to
+        // let the user pay is to hand back what we saved from the first successful call.
+        if (invoice.getOrderCode() != null && invoice.getCheckoutUrl() != null) {
+            return PaymentResponse.builder()
+                    .checkoutUrl(invoice.getCheckoutUrl())
+                    .paymentLinkId(invoice.getPaymentLinkId())
+                    .qrCode(invoice.getQrCode())
+                    .build();
+        }
+
         Long orderCode;
 
         if (invoice.getOrderCode() == null) {
@@ -98,6 +110,11 @@ public class PaymentServiceImpl
             CreatePaymentLinkResponse response =
                     payOS.paymentRequests()
                             .create(request);
+
+            invoice.setCheckoutUrl(response.getCheckoutUrl());
+            invoice.setPaymentLinkId(response.getPaymentLinkId());
+            invoice.setQrCode(response.getQrCode());
+            invoiceRepository.save(invoice);
 
             return PaymentResponse.builder()
                     .checkoutUrl(

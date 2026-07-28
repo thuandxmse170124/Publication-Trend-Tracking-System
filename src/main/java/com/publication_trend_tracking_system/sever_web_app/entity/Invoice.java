@@ -25,6 +25,19 @@ public class Invoice {
     @Column(name = "order_code", unique = true)
     private Long orderCode;
 
+    // Persisted from PayOS's create-payment-link response so a later "Pay" click can reuse the
+    // same link instead of re-calling PayOS with the same orderCode, which it rejects
+    // ("Payment order already exists") — and PayOS's get-by-orderCode API doesn't return these
+    // back, so there's no way to recover them if they aren't saved here.
+    @Column(name = "checkout_url")
+    private String checkoutUrl;
+
+    @Column(name = "payment_link_id")
+    private String paymentLinkId;
+
+    @Column(name = "qr_code", columnDefinition = "VARCHAR(MAX)")
+    private String qrCode;
+
     // Người mua
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

@@ -5,6 +5,7 @@ import com.publication_trend_tracking_system.sever_web_app.security.JwtAuthentic
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -88,6 +89,19 @@ public class SecurityConfig {
                                 "/api/payos/**",
                                 "/api/payment/webhook")
                         .permitAll()
+
+                        // Paper management (create/edit/delete) is an admin-only capability in the
+                        // frontend (Admin > Paper Management), but the routes live under the shared
+                        // /api/member/papers prefix — restrict the mutating verbs specifically so a
+                        // regular MEMBER account can't call them directly. Reads (search, filters,
+                        // get-by-id) stay open to MEMBER below.
+                        .requestMatchers(HttpMethod.POST, "/api/member/papers/**")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/member/papers/**")
+                        .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/member/papers/**")
+                        .hasRole("ADMIN")
+
                         .requestMatchers("/api/member/**")
                         .hasAnyRole(
                                 "MEMBER",
