@@ -27,7 +27,14 @@ public class PublicationTrendServiceImpl implements PublicationTrendService {
         String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
         List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
-        return paperRepository.countPapersByYearWithFilters(keyword, author, journal, fromYear, toYear, institution, types, null, fieldId, topicId);
+        // Some source records (mostly institutional repository theses/preprints) carry a bogus
+        // publication_year far in the future — e.g. 2045, 2050 — which is metadata noise, not a
+        // real trend. Cap the chart at the current year by default so those don't show up as
+        // empty/near-empty columns and push real recent years out of the chart's rolling window.
+        int currentYear = java.time.LocalDate.now().getYear();
+        Integer effectiveToYear = (toYear == null || toYear > currentYear) ? currentYear : toYear;
+
+        return paperRepository.countPapersByYearWithFilters(kwParam, authParam, jParam, fromYear, effectiveToYear, instParam, tParam, null, fieldId, topicId);
     }
 
     @Override

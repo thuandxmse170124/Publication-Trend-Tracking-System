@@ -7,6 +7,7 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicTre
 
 
 import java.util.List;
+import java.util.Set;
 
 public interface DashboardService {
     SystemStatsResponse getSystemStats();
@@ -14,5 +15,6 @@ public interface DashboardService {
     List<TopicTrendResponse> getAllTopicTrends();
     PersonalizedDashboardResponse getPersonalizedDashboard();
     List<TopicTrendResponse> getTopicTrends();
+    void checkAndNotifyTrendingTopics(Set<Integer> topicIds);
 
 }

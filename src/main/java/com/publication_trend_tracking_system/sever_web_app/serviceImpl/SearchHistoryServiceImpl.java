@@ -106,8 +106,10 @@ public class SearchHistoryServiceImpl implements SearchHistoryService {
         
         // Với mỗi keyword, lấy top 5 bài báo
         for (String kw : keywords) {
+            // Abstract scanning stays off here: this runs once per recent keyword on every
+            // dashboard load, so it must stay cheap.
             Page<PaperResponse> paperPage = paperService.searchPapers(
-                    kw, null, null, null, null, null, null, null, null, null,
+                    kw, null, null, null, null, null, null, null, null, null, false,
                     PageRequest.of(0, 5, Sort.by("citationCount").descending())
             );
             
