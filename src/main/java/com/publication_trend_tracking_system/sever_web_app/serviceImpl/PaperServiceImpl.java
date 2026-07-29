@@ -3,6 +3,7 @@ package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 import com.publication_trend_tracking_system.sever_web_app.dto.request.PaperRequest;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.AuthorResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.PaperResponse;
+import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicTagResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.*;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
@@ -103,7 +104,26 @@ public class PaperServiceImpl implements PaperService {
     @Override
     @Transactional
     public void deletePaper(Long paperId) {
-        paperRepository.delete(findPaper(paperId));
+        Paper paper = findPaper(paperId);
+        Set<Long> authorIds = paper.getAuthors().stream().map(Author::getAuthorId).collect(java.util.stream.Collectors.toSet());
+        Integer journalId = paper.getJournal() != null ? paper.getJournal().getJournalId() : null;
+
+        paperRepository.delete(paper);
+        // Flush so the DB's ON DELETE CASCADE on paper_authors/paper_journal has actually run
+        // before we count remaining references below.
+        paperRepository.flush();
+
+        // Authors and journals are auto-created from sync data, not a fixed taxonomy (unlike
+        // Topics) — once a paper is gone, an author/journal with no other papers left is just an
+        // orphan row, so clean it up rather than leaving it to accumulate forever.
+        for (Long authorId : authorIds) {
+            if (paperRepository.countByAuthors_AuthorId(authorId) == 0) {
+                authorRepository.deleteById(authorId);
+            }
+        }
+        if (journalId != null && paperRepository.countByJournal_JournalId(journalId) == 0) {
+            journalRepository.deleteById(journalId);
+        }
     }
 
     @Override
@@ -119,6 +139,7 @@ public class PaperServiceImpl implements PaperService {
             Boolean isOpenAccess,
             Integer fieldId,
             Integer topicId,
+            boolean searchAbstract,
             Pageable pageable) {
 
         String kwParam = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
@@ -127,44 +148,12 @@ public class PaperServiceImpl implements PaperService {
         String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
         List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
-        Long idKeyword = null;
-        if (kwParam != null) {
-            try {
-                idKeyword = Long.parseLong(kwParam);
-            } catch (NumberFormatException e) {
-                // Not numeric, keep as null
-            }
-        }
-
-        boolean isAdmin = false;
-        org.springframework.security.core.Authentication authentication = 
-                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            isAdmin = authentication.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        }
-
-        List<com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus> visibilities = new java.util.ArrayList<>();
-        visibilities.add(com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus.VISIBLE);
-        if (isAdmin) {
-            visibilities.add(com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus.HIDDEN);
-        }
-
-        Page<Paper> papers = paperRepository.searchPapers(
-                kwParam, 
-                idKeyword, 
-                authParam, 
-                jParam, 
-                fromYear, 
-                toYear, 
-                instParam, 
-                tParam, 
-                isOpenAccess, 
-                fieldId, 
-                topicId, 
-                visibilities, 
-                pageable
-        );
+        // Picking between two queries rather than passing a flag into one: a bind parameter cannot
+        // be folded away by the planner, so a single combined query keeps the expensive abstract
+        // scan in its plan even when the caller does not want it.
+        Page<Paper> papers = searchAbstract
+                ? paperRepository.searchPapersIncludingAbstract(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable)
+                : paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
 
         return papers.map(this::toResponse);
     }
@@ -283,8 +272,11 @@ public class PaperServiceImpl implements PaperService {
                 .map(Keyword::getKeywordName)
                 .toList();
 
-        List<String> topicStrings = paper.getTopics().stream()
-                .map(Topic::getTopicName)
+        List<TopicTagResponse> topicTags = paper.getTopics().stream()
+                .map(t -> TopicTagResponse.builder()
+                        .topicId(t.getTopicId())
+                        .topicName(t.getTopicName())
+                        .build())
                 .toList();
 
         return PaperResponse.builder()
@@ -308,7 +300,7 @@ public class PaperServiceImpl implements PaperService {
                 .updatedAt(paper.getUpdatedAt())
                 .authors(authorResponses)
                 .keywords(keywordStrings)
-                .topics(topicStrings)
+                .topics(topicTags)
                 .build();
     }
 

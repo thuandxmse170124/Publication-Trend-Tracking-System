@@ -12,6 +12,15 @@ public interface NotificationService {
     getMyNotifications(
             String email);
 
+    /** Paged feed — the unpaged variant above loads a user's whole history at once. */
+    org.springframework.data.domain.Page<NotificationResponse>
+    getMyNotifications(
+            String email,
+            org.springframework.data.domain.Pageable pageable);
+
+    /** Unread total for the badge, counted in the database rather than from a fetched page. */
+    long countUnread(String email);
+
     void markAsRead(
             Long notificationId,
             String email);

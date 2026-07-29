@@ -34,6 +34,18 @@ public class Notification {
     @Column(name = "related_id")
     private Long relatedId;
 
+    // Null on rows written before typed notifications existed; the frontend falls back to its old
+    // behaviour for those rather than guessing.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 32)
+    private com.publication_trend_tracking_system.sever_web_app.enums.NotificationType type;
+
+    // How many papers this one row stands for. New papers are aggregated per follow target instead
+    // of written one row per paper, so a sync that adds hundreds of papers to a followed topic
+    // produces a single "N new papers" entry rather than hundreds of near-identical ones.
+    @Column(name = "related_count")
+    private Integer relatedCount;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;

@@ -2,9 +2,30 @@ spring:
   config:
     import: optional:application-local.yaml
 
+  devtools:
+    restart:
+      # DevTools restarts the whole context whenever a class file changes. That kills any sync
+      # running at the time — its thread dies, the job row is left at RUNNING, and the next
+      # startup marks it FAILED — which looks exactly like a sync that "hung" on its own.
+      enabled: false
+
   datasource:
     url: jdbc:sqlserver://localhost:1433;databaseName=PublicationTracker;encrypt=true;trustServerCertificate=true
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+    hikari:
+      # A sync job runs 5 worker threads that each hold a connection for the duration of a batch
+      # save, while the Dashboard alone fires ~10 parallel API calls per page load. The Spring Boot
+      # default of 10 leaves no headroom for both at once, which is what produced the
+      # "Connection is not available, request timed out" failures during a running sync.
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      # Log a stack trace when a connection is held longer than this, so a future leak points at
+      # the offending code instead of surfacing as a generic pool timeout.
+      leak-detection-threshold: 60000
 
   jpa:
     hibernate:
@@ -17,6 +38,16 @@ spring:
         default_batch_fetch_size: 50
         use_nationalized_character_data: false
 
+        # Without these every insert is its own round trip to SQL Server. A sync batch writes a
+        # paper plus its authors, keywords and topic links one statement at a time, so a single
+        # batch could hold its connection for over a minute — long enough for the pool's leak
+        # detector to complain and for other workers to time out waiting for a connection.
+        # Grouping and ordering the statements collapses that into a handful of round trips.
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
   mail:
     host: smtp.gmail.com
     port: 587
@@ -26,7 +57,40 @@ server:
 
 app:
   sync:
+    # 02:00 every Sunday, in the zone below rather than whatever the host happens to be set to.
     cron: "0 0 2 * * SUN"
+    cron-zone: "Asia/Ho_Chi_Minh"
+    # Look-back window for scheduled runs. Must be at least as wide as the gap between two cron
+    # firings — a weekly cron with a DAY window silently skips six days out of every seven.
+    scheduled-time-range: WEEK
+    # Applies only until an admin uses the toggle in Data Sync, whose choice is stored in the
+    # database and wins from then on. Off by default so a fresh install never syncs unattended.
+    scheduler-enabled-by-default: false
+    # A job still RUNNING this long after it started is treated as dead and marked FAILED, so a
+    # crashed run cannot block every later sync for its source. 0 disables the check.
+    job-timeout-minutes: 60
+    # How often to look for those stalled jobs.
+    stale-job-check-ms: 300000
+    # Parallel workers per job. Kept small deliberately: they all write the same shared
+    # authors/keywords/journals rows, and beyond a couple of threads the deadlocks they cause each
+    # other cost more than the parallelism gains.
+    worker-threads: 2
+    # Papers per query for the free-text ("Sync Query") path only. The taxonomy sweep uses
+    # papers-per-request below instead, since it fetches many topics in one call.
+    max-papers-per-topic: 20
+    # Topics swept by one "Sync All". 0 = every official topic, which is affordable now that topics
+    # are queried in OR-ed batches: the whole ~4,500-topic taxonomy costs a few dozen requests
+    # rather than one request each. If a cap is set, topics are taken least-recently-synced first,
+    # so consecutive runs rotate through the taxonomy instead of re-syncing the same ones.
+    max-topics-per-job: 0
+    # Topic ids OR-ed into a single API request. Measured working at 100 with a ~800-character URL.
+    # Batches never span more than one research field, so the field assigned to new papers stays
+    # correct. Raising this widens coverage almost for free — it only removes requests.
+    topics-per-request: 100
+    # Papers pulled per batched request — the real cost driver. Topics cost one request each batch;
+    # every paper returned costs parsing plus database writes. Kept low so a full-taxonomy sweep
+    # stays light enough to run while people are using the site.
+    papers-per-request: 10
 
 openalex:
   api-keys: ""

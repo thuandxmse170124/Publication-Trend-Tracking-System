@@ -13,6 +13,17 @@ public interface NotificationRepository
     List<Notification> findByUserUserIdOrderByCreatedAtDesc(
             Long userId);
 
+    // Paged feed. The unpaged variant above loads a user's entire history into memory on every
+    // dropdown open, which grows without bound as syncs accumulate.
+    org.springframework.data.domain.Page<Notification>
+    findByUserUserIdOrderByCreatedAtDesc(
+            Long userId,
+            org.springframework.data.domain.Pageable pageable);
+
+    // The badge only needs a number. Counting in the database keeps it correct no matter how many
+    // rows exist, whereas counting the fetched page would only ever see that page.
+    long countByUserUserIdAndIsReadFalse(Long userId);
+
     List<Notification>
     findByUserUserIdAndIsReadFalseOrderByCreatedAtDesc(
             Long userId);

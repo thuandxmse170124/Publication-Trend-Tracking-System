@@ -21,4 +21,6 @@ public class TopicSeedStatusResponse {
     private long fieldCount;
 
     private long subfieldCount;
+
+    private boolean running;
 }
