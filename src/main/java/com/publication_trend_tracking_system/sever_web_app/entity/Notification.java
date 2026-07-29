@@ -31,6 +31,9 @@ public class Notification {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Column(name = "related_id")
+    private Long relatedId;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;

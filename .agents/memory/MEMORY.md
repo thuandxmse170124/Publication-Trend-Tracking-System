@@ -21,3 +21,6 @@
 - Date: 2026-07-03
 - What was done: Resolved Mr. Vinh's critique about missing data and topics. Implemented `DatabaseSeeder` and scaled up OpenAlex synchronization. System now automatically seeds 16,000+ papers across 20 global trending topics on a fresh DB. Successfully ran sync and exported `.sql` script for FE integration.
 - Open items: Lazy Loading or Cron Job for enriching topic `description` (Future work).
+
+## Update: 2026-07-17
+- What was done: Refactored Sync API (SyncServiceImpl) to include Date-Sorted Short-Circuit Pagination using 'timeRange' (DAY, WEEK, MONTH, ALL). Fixed the 'fake keywords' issue by natively extracting OpenAlex keywords. Merged these updates from feature/sync into develop, and then updated feature/research-paper with all latest features. Local CI tested green 100%.

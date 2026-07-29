@@ -22,5 +22,6 @@ public interface BookmarkPaperRepository
     boolean existsByUserUserIdAndPaperId(
             Long userId,
             Long paperId);
-
+    
+    List<BookmarkPaper> findByUserUserId(Long userId);
 }

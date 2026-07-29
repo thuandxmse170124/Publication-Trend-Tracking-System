@@ -27,6 +27,12 @@ public class SyncJobResponse {
 
     private String errorMessage;
 
+    // Null for custom-query / Semantic Scholar jobs; set only for structured OpenAlex "Sync All"
+    // runs that iterate the official topic taxonomy (Implementation Plan v3).
+    private Integer totalTopicsCount;
+
+    private Integer processedTopicsCount;
+
     private LocalDateTime startedAt;
 
     private LocalDateTime finishedAt;

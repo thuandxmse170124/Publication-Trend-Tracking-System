@@ -22,4 +22,6 @@ public class TopicTrendResponse {
     private Double growthRate;
 
     private String trend;
+
+    private Double trendScore;
 }

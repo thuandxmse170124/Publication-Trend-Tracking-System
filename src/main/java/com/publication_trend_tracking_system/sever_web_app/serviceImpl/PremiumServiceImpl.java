@@ -213,6 +213,16 @@ public class PremiumServiceImpl
                 .updatedAt(
                         premium.getUpdatedAt()
                 )
+                .discount(
+                        premium.getDiscount() != null ? com.publication_trend_tracking_system.sever_web_app.dto.response.DiscountResponse.builder()
+                                .discountId(premium.getDiscount().getDiscountId())
+                                .discountName(premium.getDiscount().getDiscountName())
+                                .discountPercent(premium.getDiscount().getDiscountPercent())
+                                .fromDate(premium.getDiscount().getFromDate())
+                                .toDate(premium.getDiscount().getToDate())
+                                .isActive(premium.getDiscount().getIsActive())
+                                .build() : null
+                )
                 .build();
     }
 }
