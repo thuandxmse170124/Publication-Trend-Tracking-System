@@ -2,9 +2,15 @@ package com.publication_trend_tracking_system.sever_web_app.serviceImpl;
 
 import com.publication_trend_tracking_system.sever_web_app.dto.response.SimilarPaperDTO;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.SimilarityResponseDTO;
+import com.publication_trend_tracking_system.sever_web_app.entity.Author;
 import com.publication_trend_tracking_system.sever_web_app.entity.Paper;
+import com.publication_trend_tracking_system.sever_web_app.entity.User;
+import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
+import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.PaperRepository;
+import com.publication_trend_tracking_system.sever_web_app.repository.UserRepository;
 import com.publication_trend_tracking_system.sever_web_app.service.SimilarityService;
+import com.publication_trend_tracking_system.sever_web_app.service.UserSubscriptionService;
 import com.publication_trend_tracking_system.sever_web_app.util.CosineSimilarityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +19,9 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
@@ -28,9 +36,14 @@ import java.util.stream.Collectors;
 public class SimilarityServiceImpl implements SimilarityService {
 
     private final PaperRepository paperRepository;
+    private final UserRepository userRepository;
+    private final UserSubscriptionService userSubscriptionService;
 
     @Override
+    @Transactional(readOnly = true)
     public SimilarityResponseDTO analyzeSimilarity(MultipartFile file) {
+        validatePremium();
+
         String extractedText = extractTextFromPdf(file);
         
         if (extractedText == null || extractedText.isBlank()) {
@@ -60,6 +73,7 @@ public class SimilarityServiceImpl implements SimilarityService {
                         .title(paper.getTitle())
                         .publicationYear(paper.getPublicationYear())
                         .citationCount(paper.getCitationCount())
+                        .authors(paper.getAuthors().stream().map(Author::getFullName).collect(Collectors.toList()))
                         .doi(paper.getDoi())
                         .sourceUrl(paper.getSourceUrl())
                         .similarityScore(score)
@@ -77,7 +91,17 @@ public class SimilarityServiceImpl implements SimilarityService {
                 .uploadedFileName(file.getOriginalFilename())
                 .extractedKeywords(topKeywords)
                 .similarPapers(top5)
+                .totalMatches(top5.size())
                 .build();
+    }
+
+    private void validatePremium() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if (!userSubscriptionService.isPremium(user.getUserId())) {
+            throw new AppException(ErrorCode.PREMIUM_REQUIRED);
+        }
     }
 
     private String extractTextFromPdf(MultipartFile file) {

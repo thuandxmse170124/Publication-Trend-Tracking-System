@@ -15,4 +15,7 @@ public class SimilarityResponseDTO {
     private String uploadedFileName;
     private List<String> extractedKeywords;
     private List<SimilarPaperDTO> similarPapers;
+    // Count of the papers actually returned in similarPapers (post top-5 truncation), so the FE
+    // "N Similar Papers" badge matches what's rendered below it instead of showing "undefined".
+    private Integer totalMatches;
 }
