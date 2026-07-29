@@ -75,17 +75,13 @@ app:
     # authors/keywords/journals rows, and beyond a couple of threads the deadlocks they cause each
     # other cost more than the parallelism gains.
     worker-threads: 2
-    # Papers pulled per topic/query. Kept small so a sync finishes fast enough to demo live.
+    # Papers per query for the free-text ("Sync Query") path only. The taxonomy sweep uses
+    # papers-per-request below instead, since it fetches many topics in one call.
     max-papers-per-topic: 20
-    # Topics swept by one manual "Sync All". The full taxonomy is ~4,500 topics, which takes far
-    # too long at the API's polite rate limit to run in front of an audience. 0 = no limit.
-    # Scheduled runs ignore this and still cover every topic that already has papers.
-    # 0 = sweep the whole taxonomy. Topics are queried in OR-ed batches now, so covering all ~4,500
-    # of them costs a few hundred requests rather than one per topic. When a cap is set, topics are
-    # taken least-recently-synced first, so consecutive runs rotate through the taxonomy instead of
-    # re-syncing the same ones.
-    # 0 = every official topic, every run. Affordable now that topics are queried in OR-ed batches:
-    # the taxonomy costs a few dozen requests rather than one request per topic.
+    # Topics swept by one "Sync All". 0 = every official topic, which is affordable now that topics
+    # are queried in OR-ed batches: the whole ~4,500-topic taxonomy costs a few dozen requests
+    # rather than one request each. If a cap is set, topics are taken least-recently-synced first,
+    # so consecutive runs rotate through the taxonomy instead of re-syncing the same ones.
     max-topics-per-job: 0
     # Topic ids OR-ed into a single API request. Measured working at 100 with a ~800-character URL.
     # Batches never span more than one research field, so the field assigned to new papers stays
