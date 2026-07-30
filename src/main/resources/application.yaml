@@ -56,6 +56,18 @@ spring:
         order_inserts: true
         order_updates: true
 
+  mvc:
+    # Spring answers an unmatched URL with its own bare 404 page, which never reaches
+    # @ControllerAdvice. Throwing instead lets GlobalExceptionHandler reply in the same ApiResponse
+    # envelope as everything else, so a client can parse every response the same way.
+    throw-exception-if-no-handler-found: true
+
+  web:
+    resources:
+      # The static-resource handler matches /** last and would otherwise answer unmatched API URLs
+      # itself, so the exception above would never be thrown. Nothing is served from disk here.
+      add-mappings: false
+
   mail:
     host: smtp.gmail.com
     port: 587

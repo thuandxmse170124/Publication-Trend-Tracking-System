@@ -28,6 +28,62 @@ public class GlobalExceptionHandler {
                  exception.getClass().getSimpleName(), exception.getMessage());
     }
 
+    // Everything below is a caller mistake, not a server fault, and each one used to fall through
+    // to the catch-all above and come back as "500 Uncategorized error". A wrong URL reading as an
+    // internal error is misleading to whoever is calling the API and hides real 500s in the log.
+
+    /** /api/member/authors reaching /authors/{authorId}: "authors" is not a Long. */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiResponse<Void>> handleTypeMismatch(
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException exception) {
+
+        log.warn("Bad parameter '{}' = '{}'", exception.getName(), exception.getValue());
+        return build(ErrorCode.INVALID_PARAMETER);
+    }
+
+    /** A required query parameter was left out entirely. */
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    ResponseEntity<ApiResponse<Void>> handleMissingParameter(
+            org.springframework.web.bind.MissingServletRequestParameterException exception) {
+
+        log.warn("Missing required parameter '{}'", exception.getParameterName());
+        return build(ErrorCode.INVALID_PARAMETER);
+    }
+
+    /** Body present but not parseable — malformed JSON, wrong field type. */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    ResponseEntity<ApiResponse<Void>> handleUnreadableBody(
+            org.springframework.http.converter.HttpMessageNotReadableException exception) {
+
+        log.warn("Unreadable request body: {}", exception.getMessage());
+        return build(ErrorCode.INVALID_PARAMETER);
+    }
+
+    /** No controller matched the path. Needs spring.mvc.throw-exception-if-no-handler-found. */
+    @ExceptionHandler(org.springframework.web.servlet.NoHandlerFoundException.class)
+    ResponseEntity<ApiResponse<Void>> handleNoHandler(
+            org.springframework.web.servlet.NoHandlerFoundException exception) {
+
+        log.warn("No handler for {} {}", exception.getHttpMethod(), exception.getRequestURL());
+        return build(ErrorCode.ENDPOINT_NOT_FOUND);
+    }
+
+    /** Path exists, verb does not — POST to a GET-only endpoint. */
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(
+            org.springframework.web.HttpRequestMethodNotSupportedException exception) {
+
+        log.warn("Method {} not supported here", exception.getMethod());
+        return build(ErrorCode.METHOD_NOT_ALLOWED);
+    }
+
+    private ResponseEntity<ApiResponse<Void>> build(ErrorCode errorCode) {
+        ApiResponse<Void> apiResponse = new ApiResponse<>();
+        apiResponse.setCode(errorCode.getCode());
+        apiResponse.setMessage(errorCode.getMessage());
+        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
+    }
+
     @ExceptionHandler(value = Exception.class)
     ResponseEntity<ApiResponse<Void>> handlingRuntimeException(Exception exception) {
 

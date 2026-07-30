@@ -17,6 +17,25 @@ public enum ErrorCode {
             "Invalid message key",
             HttpStatus.BAD_REQUEST),
 
+    // A path or query parameter could not be read as the type the endpoint declares — /authors/abc
+    // where an id is expected. The caller sent something wrong, so this must not surface as a 500.
+    INVALID_PARAMETER(
+            9997,
+            "Invalid request parameter",
+            HttpStatus.BAD_REQUEST),
+
+    // No handler matched the URL at all.
+    ENDPOINT_NOT_FOUND(
+            9996,
+            "Endpoint not found",
+            HttpStatus.NOT_FOUND),
+
+    // The URL exists but not for this HTTP verb.
+    METHOD_NOT_ALLOWED(
+            9995,
+            "HTTP method not supported for this endpoint",
+            HttpStatus.METHOD_NOT_ALLOWED),
+
     // Authentication
     UNAUTHENTICATED(
             1001,
