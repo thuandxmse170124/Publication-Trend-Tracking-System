@@ -148,7 +148,7 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
              "LEFT JOIN p.journal j " +
              "LEFT JOIN p.field f " +
              "WHERE (:keyword IS NULL OR p.title LIKE CONCAT('%', :keyword, '%') " +
-             "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
+                                       "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
              "AND (:author IS NULL OR p.paperId IN (SELECT ap.paperId FROM Paper ap JOIN ap.authors aa WHERE aa.fullName LIKE CONCAT('%', :author, '%'))) " +
              "AND (:journal IS NULL OR j.name LIKE CONCAT('%', :journal, '%')) " +
              "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
@@ -157,12 +157,13 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
              "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
              "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
              "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
-             "AND (:topicId IS NULL OR EXISTS (SELECT 1 FROM p.topics tt WHERE tt.topicId = :topicId))",
+             "AND (:topicId IS NULL OR EXISTS (SELECT 1 FROM p.topics tt WHERE tt.topicId = :topicId)) " +
+             "AND (:visibility IS NULL OR p.visibilityStatus = :visibility)",
            countQuery = "SELECT COUNT(p) FROM Paper p " +
              "LEFT JOIN p.journal j " +
              "LEFT JOIN p.field f " +
              "WHERE (:keyword IS NULL OR p.title LIKE CONCAT('%', :keyword, '%') " +
-             "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
+                                       "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
              "AND (:author IS NULL OR p.paperId IN (SELECT ap.paperId FROM Paper ap JOIN ap.authors aa WHERE aa.fullName LIKE CONCAT('%', :author, '%'))) " +
              "AND (:journal IS NULL OR j.name LIKE CONCAT('%', :journal, '%')) " +
              "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
@@ -171,7 +172,8 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
              "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
              "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
              "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
-             "AND (:topicId IS NULL OR EXISTS (SELECT 1 FROM p.topics tt WHERE tt.topicId = :topicId))")
+             "AND (:topicId IS NULL OR EXISTS (SELECT 1 FROM p.topics tt WHERE tt.topicId = :topicId)) " +
+             "AND (:visibility IS NULL OR p.visibilityStatus = :visibility)")
     Page<Paper> searchPapers(
             @Param("keyword") String keyword,
             @Param("author") String author,
@@ -183,6 +185,10 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @Param("isOpenAccess") Boolean isOpenAccess,
             @Param("fieldId") Integer fieldId,
             @Param("topicId") Integer topicId,
+            /** VISIBLE / HIDDEN, or null for both. Callers below admin must pass VISIBLE.
+             *  Typed rather than a String: comparing via CAST(... AS string) converts the
+             *  column on every row and the query stops returning at all. */
+            @Param("visibility") com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus visibility,
             Pageable pageable
     );
 
@@ -192,7 +198,7 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
              "LEFT JOIN p.field f " +
              "WHERE (:keyword IS NULL OR p.title LIKE CONCAT('%', :keyword, '%') " +
              "       OR p.paperAbstract LIKE CONCAT('%', :keyword, '%') " +
-             "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
+                                       "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
              "AND (:author IS NULL OR p.paperId IN (SELECT ap.paperId FROM Paper ap JOIN ap.authors aa WHERE aa.fullName LIKE CONCAT('%', :author, '%'))) " +
              "AND (:journal IS NULL OR j.name LIKE CONCAT('%', :journal, '%')) " +
              "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
@@ -201,13 +207,14 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
              "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
              "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
              "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
-             "AND (:topicId IS NULL OR EXISTS (SELECT 1 FROM p.topics tt WHERE tt.topicId = :topicId))",
+             "AND (:topicId IS NULL OR EXISTS (SELECT 1 FROM p.topics tt WHERE tt.topicId = :topicId)) " +
+             "AND (:visibility IS NULL OR p.visibilityStatus = :visibility)",
            countQuery = "SELECT COUNT(p) FROM Paper p " +
              "LEFT JOIN p.journal j " +
              "LEFT JOIN p.field f " +
              "WHERE (:keyword IS NULL OR p.title LIKE CONCAT('%', :keyword, '%') " +
              "       OR p.paperAbstract LIKE CONCAT('%', :keyword, '%') " +
-             "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
+                                       "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
              "AND (:author IS NULL OR p.paperId IN (SELECT ap.paperId FROM Paper ap JOIN ap.authors aa WHERE aa.fullName LIKE CONCAT('%', :author, '%'))) " +
              "AND (:journal IS NULL OR j.name LIKE CONCAT('%', :journal, '%')) " +
              "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
@@ -216,7 +223,8 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
              "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
              "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
              "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
-             "AND (:topicId IS NULL OR EXISTS (SELECT 1 FROM p.topics tt WHERE tt.topicId = :topicId))")
+             "AND (:topicId IS NULL OR EXISTS (SELECT 1 FROM p.topics tt WHERE tt.topicId = :topicId)) " +
+             "AND (:visibility IS NULL OR p.visibilityStatus = :visibility)")
     Page<Paper> searchPapersIncludingAbstract(
             @Param("keyword") String keyword,
             @Param("author") String author,
@@ -228,6 +236,10 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @Param("isOpenAccess") Boolean isOpenAccess,
             @Param("fieldId") Integer fieldId,
             @Param("topicId") Integer topicId,
+            /** VISIBLE / HIDDEN, or null for both. Callers below admin must pass VISIBLE.
+             *  Typed rather than a String: comparing via CAST(... AS string) converts the
+             *  column on every row and the query stops returning at all. */
+            @Param("visibility") com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus visibility,
             Pageable pageable
     );
     @Query(value = "SELECT TOP 5 p.* FROM papers p " +

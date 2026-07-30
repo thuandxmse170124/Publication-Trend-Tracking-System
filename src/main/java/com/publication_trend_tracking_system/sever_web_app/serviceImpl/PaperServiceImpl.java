@@ -5,6 +5,7 @@ import com.publication_trend_tracking_system.sever_web_app.dto.response.AuthorRe
 import com.publication_trend_tracking_system.sever_web_app.dto.response.PaperResponse;
 import com.publication_trend_tracking_system.sever_web_app.dto.response.TopicTagResponse;
 import com.publication_trend_tracking_system.sever_web_app.entity.*;
+import com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus;
 import com.publication_trend_tracking_system.sever_web_app.exception.AppException;
 import com.publication_trend_tracking_system.sever_web_app.exception.ErrorCode;
 import com.publication_trend_tracking_system.sever_web_app.repository.*;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -74,7 +76,14 @@ public class PaperServiceImpl implements PaperService {
     @Override
     @Transactional(readOnly = true)
     public PaperResponse getPaperById(Long paperId) {
-        return toResponse(findPaper(paperId));
+        Paper paper = findPaper(paperId);
+
+        // Filtering search alone would not be enough: the id is sequential and guessable, so a
+        // hidden paper would still open for anyone who typed its number into the URL.
+        if (!isAdmin() && paper.getVisibilityStatus() == PaperVisibilityStatus.HIDDEN) {
+            throw new AppException(ErrorCode.PAPER_NOT_FOUND);
+        }
+        return toResponse(paper);
     }
 
     @Override
@@ -143,19 +152,64 @@ public class PaperServiceImpl implements PaperService {
             Pageable pageable) {
 
         String kwParam = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+
+        // A paper id or a DOI identifies exactly one paper, so it is answered by a direct lookup
+        // instead of being folded into the keyword predicate. Adding them there as
+        // "title LIKE %kw% OR doi LIKE %kw% OR paperId = :id" produced a plan that never returned:
+        // the two scans and the key seek combine into something the optimiser handles badly, while
+        // each of the three on its own costs 0-320 ms.
+        if (kwParam != null) {
+            Optional<Paper> exact = findByIdentifier(kwParam);
+            if (exact.isPresent()) {
+                Paper paper = exact.get();
+                if (isAdmin() || paper.getVisibilityStatus() != PaperVisibilityStatus.HIDDEN) {
+                    return new org.springframework.data.domain.PageImpl<>(
+                            List.of(toResponse(paper)), pageable, 1);
+                }
+                return org.springframework.data.domain.Page.empty(pageable);
+            }
+        }
         String authParam = (author == null || author.isBlank()) ? null : author.trim();
         String jParam = (journal == null || journal.isBlank()) ? null : journal.trim();
         String instParam = (institution == null || institution.isBlank()) ? null : institution.trim();
         List<String> tParam = (types == null || types.isEmpty()) ? null : types;
 
+        // Decided here rather than in the controller so no endpoint can forget it. Marking a paper
+        // HIDDEN used to change nothing at all: no query filtered on visibility_status, so a hidden
+        // paper still came back in search for every member. Admins keep seeing both, because hiding
+        // is an editorial action they need to review.
+        PaperVisibilityStatus visibility = isAdmin() ? null : PaperVisibilityStatus.VISIBLE;
+
         // Picking between two queries rather than passing a flag into one: a bind parameter cannot
         // be folded away by the planner, so a single combined query keeps the expensive abstract
         // scan in its plan even when the caller does not want it.
         Page<Paper> papers = searchAbstract
-                ? paperRepository.searchPapersIncludingAbstract(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable)
-                : paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, pageable);
+                ? paperRepository.searchPapersIncludingAbstract(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, visibility, pageable)
+                : paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, visibility, pageable);
 
         return papers.map(this::toResponse);
+    }
+
+    /** A paper id or a DOI, if the search text is one. Empty for ordinary keywords. */
+    private Optional<Paper> findByIdentifier(String text) {
+        if (text.chars().allMatch(Character::isDigit) && text.length() < 19) {
+            return paperRepository.findById(Long.valueOf(text));
+        }
+        // DOIs are stored bare; users paste them either bare or as a doi.org link.
+        String doi = text.replaceFirst("(?i)^https?://(dx\\.)?doi\\.org/", "");
+        if (doi.startsWith("10.") && doi.contains("/")) {
+            return paperRepository.findByDoiIgnoreCase(doi);
+        }
+        return Optional.empty();
+    }
+
+    /** True when the current caller holds ROLE_ADMIN. */
+    private boolean isAdmin() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        return authentication != null
+                && authentication.getAuthorities().stream()
+                        .anyMatch(granted -> "ROLE_ADMIN".equals(granted.getAuthority()));
     }
 
     private void resolveRelationships(Paper paper, PaperRequest request) {
