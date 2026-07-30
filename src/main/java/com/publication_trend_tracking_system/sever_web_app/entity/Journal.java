@@ -2,6 +2,7 @@ package com.publication_trend_tracking_system.sever_web_app.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 
 @Entity
 @Table(name = "journals", indexes = {
@@ -19,15 +20,16 @@ public class Journal {
     @Column(name = "journal_id")
     private Integer journalId;
 
-    // Not @Nationalized: the actual DB column is varchar, not nvarchar. Hibernate binding this
-    // as NCHAR against a varchar column made the SQL Server driver reject every read with
-    // "The conversion from varchar to NCHAR is unsupported", failing every journal lookup.
+    // Name and publisher are NVARCHAR(255) as of the 2026-07-29 migration — see Paper.title.
+    // issn stays plain varchar: it is an ASCII identifier, not free text.
+    @Nationalized
     @Column(name = "name", nullable = false)
     private String name;
 
     @Column(name = "issn")
     private String issn;
 
+    @Nationalized
     @Column(name = "publisher")
     private String publisher;
 

@@ -20,7 +20,7 @@ public class Topic {
     @Column(name = "topic_name", nullable = false, unique = true)
     private String topicName;
 
-    @Column(name = "description", columnDefinition = "VARCHAR(MAX)")
+    @Column(name = "description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @Builder.Default

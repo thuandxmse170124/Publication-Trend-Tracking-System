@@ -4,6 +4,7 @@ import com.publication_trend_tracking_system.sever_web_app.enums.PaperPublicatio
 import com.publication_trend_tracking_system.sever_web_app.enums.PaperVisibilityStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -42,8 +43,10 @@ public class Paper {
     @Column(name = "publication_type", nullable = false)
     private PaperPublicationType publicationType;
 
-    // Not @Nationalized: the actual DB column is varchar, not nvarchar (same issue as
-    // Journal.name — see comment there). This one broke every single paper insert/update.
+    // @Nationalized because the column is NVARCHAR(500) as of the 2026-07-29 migration. Before it,
+    // the column was varchar under a Latin-1 collation and every non-Latin title — CJK, Cyrillic,
+    // Vietnamese diacritics — was silently stored as literal '?' characters.
+    @Nationalized
     @Column(name = "title", nullable = false, length = 500)
     private String title;
 

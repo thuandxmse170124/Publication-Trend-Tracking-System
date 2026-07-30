@@ -98,6 +98,10 @@ public class SyncServiceImpl implements SyncService {
     @org.springframework.beans.factory.annotation.Value("${app.sync.papers-per-request:50}")
     private int papersPerRequest;
 
+    // OpenAlex work types a sync refuses, comma-separated. Blank disables the filter.
+    @org.springframework.beans.factory.annotation.Value("${app.sync.openalex-excluded-work-types:paratext,other,supplementary-materials,peer-review,erratum,retraction,reference-entry,book-review,standard}")
+    private String openAlexExcludedWorkTypes;
+
     // Must stay wide enough to cover the interval between two app.sync.cron firings.
     @org.springframework.beans.factory.annotation.Value("${app.sync.scheduled-time-range:WEEK}")
     private String scheduledTimeRangeName;
@@ -950,18 +954,13 @@ public class SyncServiceImpl implements SyncService {
             // FIX #5: Use fixed mailto for OpenAlex polite pool identification
             String url = source.getBaseUrl() + "/works?search=" + encodedQuery + "&per-page=" + pageSize + "&page=" + page + "&mailto=ptt.sync@university.edu";
             
-            if (cutoffDate != null || endDate != null) {
-                String filterFrom = cutoffDate != null ? cutoffDate.toString() : "";
-                String filterTo = endDate != null ? endDate.toString() : "";
-                
-                if (!filterFrom.isEmpty() && !filterTo.isEmpty()) {
-                    url += "&filter=from_publication_date:" + filterFrom + ",to_publication_date:" + filterTo;
-                } else if (!filterFrom.isEmpty()) {
-                    url += "&filter=from_publication_date:" + filterFrom;
-                } else if (!filterTo.isEmpty()) {
-                    url += "&filter=to_publication_date:" + filterTo;
-                }
-            }
+            // The upper bound is applied unconditionally — see buildStructuredOpenAlexUrl for why a
+            // sweep sorted newest-first must never be left open-ended.
+            String filterTo = (endDate != null ? endDate : LocalDate.now()).toString();
+            url += "&filter="
+                    + (cutoffDate != null ? "from_publication_date:" + cutoffDate + "," : "")
+                    + "to_publication_date:" + filterTo
+                    + workTypeFilter();
             url += "&sort=publication_date:desc";
             return url;
         } else if ("Semantic Scholar".equalsIgnoreCase(source.getSourceName())) {
@@ -991,11 +990,46 @@ public class SyncServiceImpl implements SyncService {
         if (cutoffDate != null) {
             filter.append(",from_publication_date:").append(cutoffDate);
         }
-        if (endDate != null) {
-            filter.append(",to_publication_date:").append(endDate);
-        }
+        // Always bound the top of the range, even when the caller asked for "all time". OpenAlex
+        // stores whatever date the publisher supplied, and some ship placeholders decades ahead —
+        // a Cairn.info issue from 2024 arrives as 2050-01-01. Sorting newest-first puts precisely
+        // those records on page one of every topic, so an unbounded sweep fills the database with
+        // papers that cannot exist yet.
+        filter.append(",to_publication_date:").append(endDate != null ? endDate : LocalDate.now());
+        filter.append(workTypeFilter());
         return source.getBaseUrl() + "/works?filter=" + filter
                 + "&sort=publication_date:desc&per-page=" + pageSize + "&page=" + page + "&mailto=ptt.sync@university.edu";
+    }
+
+    // Drops the OpenAlex types that are not publications at all — covers and indexes (paratext),
+    // referee reports (peer-review), corrections (erratum, retraction), encyclopedia entries, and
+    // reviews *of* books. Every remaining type is real scholarly output and stays: review articles
+    // and research letters in particular are among the most-cited literature there is, so this has
+    // to be a deny list. An allow list drawn up from a single topic's type histogram silently threw
+    // away 356 review articles and 5 letters when measured against the whole database.
+    //
+    // True when a title ends in an archive extension, i.e. it names an uploaded file rather than
+    // describing a work. Deliberately narrow: only archive formats, so a paper legitimately titled
+    // after a data format is not caught.
+    private static boolean isArchiveFilename(String title) {
+        String lower = title.toLowerCase();
+        return lower.endsWith(".zip") || lower.endsWith(".tar") || lower.endsWith(".tar.gz")
+                || lower.endsWith(".tgz") || lower.endsWith(".rar") || lower.endsWith(".7z");
+    }
+
+    // OpenAlex ANDs repeated filter keys, so each exclusion is its own type:! term.
+    private String workTypeFilter() {
+        if (openAlexExcludedWorkTypes == null || openAlexExcludedWorkTypes.isBlank()) {
+            return "";
+        }
+        StringBuilder filter = new StringBuilder();
+        for (String type : openAlexExcludedWorkTypes.split(",")) {
+            String trimmed = type.trim();
+            if (!trimmed.isEmpty()) {
+                filter.append(",type:!").append(trimmed);
+            }
+        }
+        return filter.toString();
     }
 
     // Upper bound on how many new Paper entities a single job keeps in memory for the notification
@@ -1273,9 +1307,9 @@ public class SyncServiceImpl implements SyncService {
                 }
                 backoffBeforeRetry(i);
             } catch (Exception e) {
-                log.warn("API request failed (attempt {}/{}): {}", i + 1, maxRetries, e.getMessage());
+                log.warn("API request failed (attempt {}/{}): {}", i + 1, maxRetries, com.publication_trend_tracking_system.sever_web_app.config.OpenAlexKeyRotator.redactApiKey(e.getMessage()));
                 if (i == maxRetries - 1) {
-                    throw new RuntimeException("API request failed after " + maxRetries + " attempts: " + e.getMessage(), e);
+                    throw new RuntimeException("API request failed after " + maxRetries + " attempts: " + com.publication_trend_tracking_system.sever_web_app.config.OpenAlexKeyRotator.redactApiKey(e.getMessage()), e);
                 }
                 backoffBeforeRetry(i);
             }
@@ -1330,8 +1364,14 @@ public class SyncServiceImpl implements SyncService {
                 // display titles as plain text everywhere, so strip the markup rather than show
                 // literal "<i>...</i>" to the user.
                 dto.title = dto.title.replaceAll("<[^>]+>", "").trim();
+                // A title that is just an archive filename is a bulk deposit, not a paper. Zenodo
+                // carries thousands of public-domain novels this way — one .zip per title, machine
+                // translated, and OpenAlex still assigns them research topics, so each one inflates
+                // the growth rate of whatever topic it lands on. The work type does not catch these:
+                // they arrive as type=book, alongside genuine academic books worth keeping.
+                if (isArchiveFilename(dto.title)) continue;
                 if (dto.title.length() > 250) dto.title = dto.title.substring(0, 247) + "...";
-                
+
                 String doiUrl = work.path("doi").asText(null);
                 dto.doi = doiUrl != null && doiUrl.startsWith("https://doi.org/") ? doiUrl.substring(16) : doiUrl;
                 // FIX #2: Don't default to current year — null is better for trend accuracy
