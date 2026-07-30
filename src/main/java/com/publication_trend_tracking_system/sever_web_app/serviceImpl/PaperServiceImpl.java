@@ -183,11 +183,56 @@ public class PaperServiceImpl implements PaperService {
         // Picking between two queries rather than passing a flag into one: a bind parameter cannot
         // be folded away by the planner, so a single combined query keeps the expensive abstract
         // scan in its plan even when the caller does not want it.
-        Page<Paper> papers = searchAbstract
-                ? paperRepository.searchPapersIncludingAbstract(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, visibility, pageable)
-                : paperRepository.searchPapers(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, visibility, pageable);
+        // With a keyword, the native UNION variants are used: as an OR the topic match re-ran per
+        // row and cost 615,467 logical reads against 716 for the UNION. Without one there is no
+        // keyword predicate to go wrong, so the JPQL queries stay.
+        String visibilityName = visibility == null ? null : visibility.name();
+        Page<Paper> papers;
+        if (kwParam != null) {
+            Pageable nativePageable = withColumnNames(pageable);
+            papers = searchAbstract
+                    ? paperRepository.searchPapersByKeywordIncludingAbstract(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, visibilityName, nativePageable)
+                    : paperRepository.searchPapersByKeyword(kwParam, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, visibilityName, nativePageable);
+        } else {
+            papers = searchAbstract
+                    ? paperRepository.searchPapersIncludingAbstract(null, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, visibility, pageable)
+                    : paperRepository.searchPapers(null, authParam, jParam, fromYear, toYear, instParam, tParam, isOpenAccess, fieldId, topicId, visibility, pageable);
+        }
 
         return papers.map(this::toResponse);
+    }
+
+    /**
+     * Rewrites a Pageable's sort properties from entity names to column names.
+     *
+     * <p>Spring appends the sort to a native query verbatim, so "publicationYear" reaches SQL
+     * Server unchanged and it answers "Invalid column name". The JPQL variants need the entity
+     * name, so the translation belongs here rather than in the controller.
+     */
+    private Pageable withColumnNames(Pageable pageable) {
+        if (pageable.getSort().isUnsorted()) {
+            return pageable;
+        }
+        org.springframework.data.domain.Sort translated = org.springframework.data.domain.Sort.by(
+                pageable.getSort().stream()
+                        .map(order -> new org.springframework.data.domain.Sort.Order(
+                                order.getDirection(), toColumnName(order.getProperty())))
+                        .toList());
+        return org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(), translated);
+    }
+
+    /** camelCase entity property to snake_case column, matching this schema's naming. */
+    private static String toColumnName(String property) {
+        StringBuilder column = new StringBuilder(property.length() + 4);
+        for (char ch : property.toCharArray()) {
+            if (Character.isUpperCase(ch)) {
+                column.append('_').append(Character.toLowerCase(ch));
+            } else {
+                column.append(ch);
+            }
+        }
+        return column.toString();
     }
 
     /** A paper id or a DOI, if the search text is one. Empty for ordinary keywords. */

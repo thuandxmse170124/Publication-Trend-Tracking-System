@@ -153,3 +153,24 @@ GO
 
 PRINT '=== Unicode column migration complete ===';
 GO
+
+/*
+  Added 2026-07-31. Not a column change, but it belongs with the search work above.
+
+  Every search predicate is written ":param IS NULL OR <condition>", so one cached plan has to
+  serve calls with wildly different filters. SQL Server compiles that plan for whichever
+  parameters it saw first and reuses it: a plan built for "keyword only" then applied to
+  "keyword + author" stopped returning altogether — over 180 seconds for a search that takes
+  under a second when compiled for its own parameters.
+
+  PARAMETER_SNIFFING OFF makes the optimiser use average statistics instead of the first
+  parameter set. That is the right trade for this workload: no single set is representative,
+  and a consistently good plan beats one that is excellent for one filter combination and
+  unusable for the next.
+*/
+IF EXISTS (SELECT 1 FROM sys.database_scoped_configurations WHERE name = 'PARAMETER_SNIFFING' AND value = 1)
+BEGIN
+    ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = OFF;
+    PRINT 'PARAMETER_SNIFFING set to OFF';
+END
+GO

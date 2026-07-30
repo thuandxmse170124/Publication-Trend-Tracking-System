@@ -192,6 +192,86 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             Pageable pageable
     );
 
+
+    // Keyword search runs as native SQL because the match has to be a UNION.
+    //
+    // As an OR — "title LIKE %kw% OR paperId IN (topic subquery)" — SQL Server evaluates the topic
+    // subquery once per candidate row: 24,907 scans of paper_topics and 615,467 logical reads for a
+    // query that needs 716. Rewriting the same match as a UNION of two id sets brings it to 716
+    // reads and 122 ms. Neither dropping the ":kw IS NULL OR" wrapper nor making both sides IN
+    // subqueries helped; only the UNION did. JPQL has no UNION, hence native.
+    String KEYWORD_FILTER =
+            " AND p.paper_id IN ( "
+            + "   SELECT paper_id FROM papers WHERE title LIKE '%' + :keyword + '%' "
+            + "   UNION "
+            + "   SELECT pt.paper_id FROM paper_topics pt JOIN topics t ON t.topic_id = pt.topic_id "
+            + "     WHERE t.topic_name LIKE '%' + :keyword + '%' "
+            + " ) ";
+
+    String KEYWORD_FILTER_WITH_ABSTRACT =
+            " AND p.paper_id IN ( "
+            + "   SELECT paper_id FROM papers WHERE title LIKE '%' + :keyword + '%' "
+            + "   UNION "
+            + "   SELECT paper_id FROM papers WHERE abstract LIKE '%' + :keyword + '%' "
+            + "   UNION "
+            + "   SELECT pt.paper_id FROM paper_topics pt JOIN topics t ON t.topic_id = pt.topic_id "
+            + "     WHERE t.topic_name LIKE '%' + :keyword + '%' "
+            + " ) ";
+
+    /** The filters shared with the JPQL variants, in native form. */
+    String COMMON_FILTER =
+            " FROM papers p "
+            + " LEFT JOIN journals j ON j.journal_id = p.journal_id "
+            + " LEFT JOIN research_fields f ON f.field_id = p.field_id "
+            + " WHERE (:author IS NULL OR p.paper_id IN (SELECT pa.paper_id FROM paper_authors pa "
+            + "        JOIN authors a ON a.author_id = pa.author_id WHERE a.full_name LIKE '%' + :author + '%')) "
+            + " AND (:journal IS NULL OR j.name LIKE '%' + :journal + '%') "
+            + " AND (:fromYear IS NULL OR p.publication_year >= :fromYear) "
+            + " AND (:toYear IS NULL OR p.publication_year <= :toYear) "
+            + " AND (:institution IS NULL OR p.paper_id IN (SELECT pa2.paper_id FROM paper_authors pa2 "
+            + "        JOIN authors a2 ON a2.author_id = pa2.author_id WHERE a2.affiliation LIKE '%' + :institution + '%')) "
+            + " AND (:types IS NULL OR p.publication_type IN (:types)) "
+            + " AND (:isOpenAccess IS NULL OR p.is_open_access = :isOpenAccess) "
+            + " AND (:fieldId IS NULL OR f.field_id = :fieldId) "
+            + " AND (:topicId IS NULL OR EXISTS (SELECT 1 FROM paper_topics pt2 WHERE pt2.paper_id = p.paper_id AND pt2.topic_id = :topicId)) "
+            + " AND (:visibility IS NULL OR p.visibility_status = :visibility) ";
+
+    @Query(value = "SELECT p.* " + COMMON_FILTER + KEYWORD_FILTER,
+           countQuery = "SELECT COUNT(*) " + COMMON_FILTER + KEYWORD_FILTER,
+           nativeQuery = true)
+    Page<Paper> searchPapersByKeyword(
+            @Param("keyword") String keyword,
+            @Param("author") String author,
+            @Param("journal") String journal,
+            @Param("fromYear") Integer fromYear,
+            @Param("toYear") Integer toYear,
+            @Param("institution") String institution,
+            @Param("types") List<String> types,
+            @Param("isOpenAccess") Boolean isOpenAccess,
+            @Param("fieldId") Integer fieldId,
+            @Param("topicId") Integer topicId,
+            @Param("visibility") String visibility,
+            Pageable pageable
+    );
+
+    @Query(value = "SELECT p.* " + COMMON_FILTER + KEYWORD_FILTER_WITH_ABSTRACT,
+           countQuery = "SELECT COUNT(*) " + COMMON_FILTER + KEYWORD_FILTER_WITH_ABSTRACT,
+           nativeQuery = true)
+    Page<Paper> searchPapersByKeywordIncludingAbstract(
+            @Param("keyword") String keyword,
+            @Param("author") String author,
+            @Param("journal") String journal,
+            @Param("fromYear") Integer fromYear,
+            @Param("toYear") Integer toYear,
+            @Param("institution") String institution,
+            @Param("types") List<String> types,
+            @Param("isOpenAccess") Boolean isOpenAccess,
+            @Param("fieldId") Integer fieldId,
+            @Param("topicId") Integer topicId,
+            @Param("visibility") String visibility,
+            Pageable pageable
+    );
+
     /** Same filters, but also scans paper abstracts. Much slower — opt in only. */
     @Query(value = "SELECT p FROM Paper p " +
              "LEFT JOIN p.journal j " +
