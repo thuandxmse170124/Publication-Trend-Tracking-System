@@ -254,9 +254,9 @@ public class TopicSeedServiceImpl implements TopicSeedService {
                 }
                 try { Thread.sleep(2000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
             } catch (Exception e) {
-                log.warn("OpenAlex topics request failed (attempt {}/{}): {}", i + 1, maxRetries, e.getMessage());
+                log.warn("OpenAlex topics request failed (attempt {}/{}): {}", i + 1, maxRetries, com.publication_trend_tracking_system.sever_web_app.config.OpenAlexKeyRotator.redactApiKey(e.getMessage()));
                 if (i == maxRetries - 1) {
-                    throw new RuntimeException("OpenAlex topics request failed after " + maxRetries + " attempts: " + e.getMessage(), e);
+                    throw new RuntimeException("OpenAlex topics request failed after " + maxRetries + " attempts: " + com.publication_trend_tracking_system.sever_web_app.config.OpenAlexKeyRotator.redactApiKey(e.getMessage()), e);
                 }
                 try { Thread.sleep(2000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
             }

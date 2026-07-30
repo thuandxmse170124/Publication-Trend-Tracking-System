@@ -138,16 +138,22 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     //
     // DISTINCT is off: the only remaining joins are journal and field, both many-to-one, so they
     // cannot duplicate a paper. It was needed back when authors and topics were joined in directly.
+    //
+    // The topic/author/institution predicates are uncorrelated IN subqueries rather than correlated
+    // EXISTS. An EXISTS that references p re-runs per candidate paper, so a keyword matching no
+    // title made SQL Server evaluate it against all ~25,000 rows: measured at 5,245 ms versus 169 ms
+    // for the IN form, which resolves the matching ids once. Rare keywords were the slow ones, which
+    // is the opposite of what anyone expects while demoing.
     @Query(value = "SELECT p FROM Paper p " +
              "LEFT JOIN p.journal j " +
              "LEFT JOIN p.field f " +
              "WHERE (:keyword IS NULL OR p.title LIKE CONCAT('%', :keyword, '%') " +
-             "       OR EXISTS (SELECT 1 FROM p.topics kt WHERE kt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
-             "AND (:author IS NULL OR EXISTS (SELECT 1 FROM p.authors pa WHERE pa.fullName LIKE CONCAT('%', :author, '%'))) " +
+             "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
+             "AND (:author IS NULL OR p.paperId IN (SELECT ap.paperId FROM Paper ap JOIN ap.authors aa WHERE aa.fullName LIKE CONCAT('%', :author, '%'))) " +
              "AND (:journal IS NULL OR j.name LIKE CONCAT('%', :journal, '%')) " +
              "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
              "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
-             "AND (:institution IS NULL OR EXISTS (SELECT 1 FROM p.authors ia WHERE ia.affiliation LIKE CONCAT('%', :institution, '%'))) " +
+             "AND (:institution IS NULL OR p.paperId IN (SELECT ip.paperId FROM Paper ip JOIN ip.authors ia WHERE ia.affiliation LIKE CONCAT('%', :institution, '%'))) " +
              "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
              "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
              "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
@@ -156,12 +162,12 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
              "LEFT JOIN p.journal j " +
              "LEFT JOIN p.field f " +
              "WHERE (:keyword IS NULL OR p.title LIKE CONCAT('%', :keyword, '%') " +
-             "       OR EXISTS (SELECT 1 FROM p.topics kt WHERE kt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
-             "AND (:author IS NULL OR EXISTS (SELECT 1 FROM p.authors pa WHERE pa.fullName LIKE CONCAT('%', :author, '%'))) " +
+             "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
+             "AND (:author IS NULL OR p.paperId IN (SELECT ap.paperId FROM Paper ap JOIN ap.authors aa WHERE aa.fullName LIKE CONCAT('%', :author, '%'))) " +
              "AND (:journal IS NULL OR j.name LIKE CONCAT('%', :journal, '%')) " +
              "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
              "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
-             "AND (:institution IS NULL OR EXISTS (SELECT 1 FROM p.authors ia WHERE ia.affiliation LIKE CONCAT('%', :institution, '%'))) " +
+             "AND (:institution IS NULL OR p.paperId IN (SELECT ip.paperId FROM Paper ip JOIN ip.authors ia WHERE ia.affiliation LIKE CONCAT('%', :institution, '%'))) " +
              "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
              "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
              "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
@@ -186,12 +192,12 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
              "LEFT JOIN p.field f " +
              "WHERE (:keyword IS NULL OR p.title LIKE CONCAT('%', :keyword, '%') " +
              "       OR p.paperAbstract LIKE CONCAT('%', :keyword, '%') " +
-             "       OR EXISTS (SELECT 1 FROM p.topics kt WHERE kt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
-             "AND (:author IS NULL OR EXISTS (SELECT 1 FROM p.authors pa WHERE pa.fullName LIKE CONCAT('%', :author, '%'))) " +
+             "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
+             "AND (:author IS NULL OR p.paperId IN (SELECT ap.paperId FROM Paper ap JOIN ap.authors aa WHERE aa.fullName LIKE CONCAT('%', :author, '%'))) " +
              "AND (:journal IS NULL OR j.name LIKE CONCAT('%', :journal, '%')) " +
              "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
              "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
-             "AND (:institution IS NULL OR EXISTS (SELECT 1 FROM p.authors ia WHERE ia.affiliation LIKE CONCAT('%', :institution, '%'))) " +
+             "AND (:institution IS NULL OR p.paperId IN (SELECT ip.paperId FROM Paper ip JOIN ip.authors ia WHERE ia.affiliation LIKE CONCAT('%', :institution, '%'))) " +
              "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
              "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
              "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +
@@ -201,12 +207,12 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
              "LEFT JOIN p.field f " +
              "WHERE (:keyword IS NULL OR p.title LIKE CONCAT('%', :keyword, '%') " +
              "       OR p.paperAbstract LIKE CONCAT('%', :keyword, '%') " +
-             "       OR EXISTS (SELECT 1 FROM p.topics kt WHERE kt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
-             "AND (:author IS NULL OR EXISTS (SELECT 1 FROM p.authors pa WHERE pa.fullName LIKE CONCAT('%', :author, '%'))) " +
+             "       OR p.paperId IN (SELECT tp.paperId FROM Paper tp JOIN tp.topics tt WHERE tt.topicName LIKE CONCAT('%', :keyword, '%'))) " +
+             "AND (:author IS NULL OR p.paperId IN (SELECT ap.paperId FROM Paper ap JOIN ap.authors aa WHERE aa.fullName LIKE CONCAT('%', :author, '%'))) " +
              "AND (:journal IS NULL OR j.name LIKE CONCAT('%', :journal, '%')) " +
              "AND (:fromYear IS NULL OR p.publicationYear >= :fromYear) " +
              "AND (:toYear IS NULL OR p.publicationYear <= :toYear) " +
-             "AND (:institution IS NULL OR EXISTS (SELECT 1 FROM p.authors ia WHERE ia.affiliation LIKE CONCAT('%', :institution, '%'))) " +
+             "AND (:institution IS NULL OR p.paperId IN (SELECT ip.paperId FROM Paper ip JOIN ip.authors ia WHERE ia.affiliation LIKE CONCAT('%', :institution, '%'))) " +
              "AND (:types IS NULL OR CAST(p.publicationType AS string) IN :types) " +
              "AND (:isOpenAccess IS NULL OR p.isOpenAccess = :isOpenAccess) " +
              "AND (:fieldId IS NULL OR f.fieldId = :fieldId) " +

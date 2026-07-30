@@ -4,22 +4,29 @@ import com.publication_trend_tracking_system.sever_web_app.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.function.Function;
 
 @Service
 public class JwtService {
 
-    private static final String SECRET_KEY =
-            "publicationtrendtrackingsystemjwtsecretkey2026verysecurekey";
+    // Read from configuration so the deployed secret can be supplied through the environment
+    // (JWT_SECRET) and never has to live in the repository. The default below only exists so a
+    // fresh clone starts without setup — anyone holding it can mint a token for any account,
+    // including an admin one, so a real deployment must override it.
+    @Value("${app.jwt.secret}")
+    private String secretKey;
+
+    @Value("${app.jwt.expiration-hours:24}")
+    private long expirationHours;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(
-                SECRET_KEY.getBytes()
-        );
+        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(User user) {
@@ -34,7 +41,7 @@ public class JwtService {
                 .expiration(
                         new Date(
                                 System.currentTimeMillis()
-                                        + 1000 * 60 * 60 * 24
+                                        + expirationHours * 60 * 60 * 1000
                         )
                 )
                 .signWith(getSigningKey())

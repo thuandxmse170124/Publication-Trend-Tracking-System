@@ -32,6 +32,14 @@ spring:
       ddl-auto: update
     show-sql: false
 
+    # Spring leaves this on by default, which holds the Hibernate session — and with it a pooled
+    # connection — open for the whole request, including JSON serialisation. During a sync the
+    # workers already want most of the pool, so request threads sitting on connections they are no
+    # longer querying with is what turned dashboard calls into multi-second waits. Off means a
+    # connection is released as soon as the service method returns; anything a controller still
+    # needs must be fetched inside the transaction, which is where it belonged anyway.
+    open-in-view: false
+
     properties:
       hibernate:
         format_sql: true
@@ -56,6 +64,32 @@ server:
   port: 8080
 
 app:
+  cors:
+    # Comma-separated, exact origins — scheme, host and port must all match what the browser sends.
+    # 3000 is the Vite dev server (frontend/vite.config.js); 5173 is Vite's own default, kept for
+    # anyone running it unconfigured. Add the deployed frontend origin here before going live,
+    # through the CORS_ALLOWED_ORIGINS environment variable rather than by editing this file.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+    max-age-seconds: 3600
+
+  jwt:
+    # Override in production with the JWT_SECRET environment variable. The fallback keeps a fresh
+    # clone runnable, but it is public knowledge — anyone with it can sign a token for any account.
+    secret: ${JWT_SECRET:publicationtrendtrackingsystemjwtsecretkey2026verysecurekey}
+    expiration-hours: 24
+
+  rate-limit:
+    enabled: true
+    # Brute-force ceiling for /auth/**. A person signing in mistypes a password two or three times,
+    # not ten, so this leaves real users alone while making a password list impractical.
+    auth-per-minute: 10
+    # One trigger sweeps the whole taxonomy. Five a minute is already more than anyone needs.
+    sync-per-minute: 5
+    # Everything else. The dashboard alone fires roughly ten calls per page load, so 120 would cap a
+    # user at twelve page views a minute — reachable by someone clicking through a demo. 300 keeps
+    # a wide margin over real browsing while still stopping a scripted flood.
+    default-per-minute: 300
+
   sync:
     # 02:00 every Sunday, in the zone below rather than whatever the host happens to be set to.
     cron: "0 0 2 * * SUN"
@@ -91,6 +125,12 @@ app:
     # every paper returned costs parsing plus database writes. Kept low so a full-taxonomy sweep
     # stays light enough to run while people are using the site.
     papers-per-request: 10
+    # OpenAlex work types a sync refuses. These are not publications: covers and indexes (paratext),
+    # referee reports (peer-review), corrections (erratum, retraction), encyclopedia entries, reviews
+    # of books, and standards documents. Everything else is kept on purpose — review articles,
+    # research letters, editorials, datasets and software are all real scholarly output, and review
+    # articles are often the most-cited items in a field. Blank disables the filter.
+    openalex-excluded-work-types: "paratext,other,supplementary-materials,peer-review,erratum,retraction,reference-entry,book-review,standard"
 
 openalex:
   api-keys: ""

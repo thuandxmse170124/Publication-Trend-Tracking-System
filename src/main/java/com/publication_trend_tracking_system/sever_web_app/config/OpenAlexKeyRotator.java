@@ -56,4 +56,18 @@ public class OpenAlexKeyRotator {
             log.warn("OpenAlex API key exhausted its daily budget — rotating to key {}/{}", next + 1, keys.size());
         }
     }
+
+    /**
+     * Strips the value of any {@code api_key} parameter out of a string before it is logged or
+     * stored. OpenAlex only accepts its key as a query parameter, so the key is unavoidably part of
+     * every request URL; the job here is to make sure that URL never reaches a log file, an error
+     * message, or the sync_jobs.error_message column an admin can read in the browser.
+     *
+     * <p>Callers should route anything that might embed a request URL through this — most obviously
+     * exception messages, which today happen to omit the query string but are not contractually
+     * required to.
+     */
+    public static String redactApiKey(String text) {
+        return text == null ? null : text.replaceAll("(?i)(api_key=)[^&\\s\"]+", "$1***");
+    }
 }

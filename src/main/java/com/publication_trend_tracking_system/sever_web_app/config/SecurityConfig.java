@@ -2,6 +2,7 @@ package com.publication_trend_tracking_system.sever_web_app.config;
 
 import com.publication_trend_tracking_system.sever_web_app.security.CustomUserDetailsService;
 import com.publication_trend_tracking_system.sever_web_app.security.JwtAuthenticationFilter;
+import com.publication_trend_tracking_system.sever_web_app.security.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,6 +28,10 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    private final RateLimitFilter rateLimitFilter;
+
+    private final org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -63,6 +68,10 @@ public class SecurityConfig {
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
+
+                // Without this the CorsConfigurationSource bean is ignored by the security chain and
+                // preflight OPTIONS requests are rejected as unauthenticated before reaching it.
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
 
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
@@ -116,6 +125,14 @@ public class SecurityConfig {
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
+                )
+
+                // After the JWT filter so an authenticated caller is counted by account rather than
+                // by address — several users behind one NAT must not share a quota. Unauthenticated
+                // requests, including every login attempt, still fall back to the client IP.
+                .addFilterAfter(
+                        rateLimitFilter,
+                        JwtAuthenticationFilter.class
                 );
 
         return http.build();
