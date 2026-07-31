@@ -32,13 +32,22 @@ spring:
       ddl-auto: update
     show-sql: false
 
-    # Spring leaves this on by default, which holds the Hibernate session — and with it a pooled
-    # connection — open for the whole request, including JSON serialisation. During a sync the
-    # workers already want most of the pool, so request threads sitting on connections they are no
-    # longer querying with is what turned dashboard calls into multi-second waits. Off means a
-    # connection is released as soon as the service method returns; anything a controller still
-    # needs must be fetched inside the transaction, which is where it belonged anyway.
-    open-in-view: false
+    # Left on, which is Spring's default, and it should stay on until the services below are ready
+    # for it to be off.
+    #
+    # Turning it off is the better end state: the session, and the pooled connection with it, is
+    # held for the whole request today including JSON serialisation, and during a sync that is what
+    # turned dashboard calls into multi-second waits — worst case dropped from 8.46 s to 1.96 s with
+    # it off. But eleven services carry no @Transactional at all (PremiumServiceImpl,
+    # InvoiceServiceImpl, ReportServiceImpl, UserServiceImpl and the rest), so any of them that
+    # touches a lazy association after the repository call throws LazyInitializationException
+    # instead. Admin > Premium Packages did exactly that as soon as a package had a discount
+    # attached — a row that happens not to exist on every machine, which is why testing here missed
+    # it.
+    #
+    # To turn this off: give those services @Transactional(readOnly = true) on their read methods,
+    # or fetch the associations explicitly, then flip it and exercise every admin screen.
+    open-in-view: true
 
     properties:
       hibernate:
