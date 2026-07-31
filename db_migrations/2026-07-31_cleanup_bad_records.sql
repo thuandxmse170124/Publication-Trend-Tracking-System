@@ -44,6 +44,7 @@ GO
 
 -- Delete children first: paper_authors, paper_keywords and paper_topics have no cascade.
 DECLARE @doomed TABLE (paper_id BIGINT PRIMARY KEY);
+DECLARE @keep   TABLE (paper_id BIGINT);
 
 INSERT INTO @doomed (paper_id)
 SELECT paper_id FROM papers
@@ -56,8 +57,23 @@ PRINT 'Rows to delete: ' + CAST(@doomedCount AS VARCHAR);
 
 -- Anything a user has acted on is left alone: a bookmark or a report means someone can see it
 -- disappear, which is worse than one odd row on a chart.
-DELETE FROM @doomed WHERE paper_id IN (SELECT paper_id FROM bookmark_papers)
-                       OR paper_id IN (SELECT paper_id FROM report_tickets WHERE paper_id IS NOT NULL);
+--
+-- Both lookups run through EXEC because these tables do not exist on every teammate's database
+-- yet. A direct reference would fail to compile the whole batch even inside an IF that never
+-- runs — SQL Server resolves names when it parses, not when it executes.
+IF OBJECT_ID('bookmark_papers') IS NOT NULL
+BEGIN
+    INSERT INTO @keep (paper_id)
+    EXEC('SELECT DISTINCT paper_id FROM bookmark_papers WHERE paper_id IS NOT NULL');
+END
+
+IF OBJECT_ID('report_tickets') IS NOT NULL AND COL_LENGTH('report_tickets','paper_id') IS NOT NULL
+BEGIN
+    INSERT INTO @keep (paper_id)
+    EXEC('SELECT DISTINCT paper_id FROM report_tickets WHERE paper_id IS NOT NULL');
+END
+
+DELETE d FROM @doomed d JOIN @keep k ON k.paper_id = d.paper_id;
 
 BEGIN TRANSACTION;
     DELETE x FROM paper_authors  x JOIN @doomed d ON d.paper_id = x.paper_id;
