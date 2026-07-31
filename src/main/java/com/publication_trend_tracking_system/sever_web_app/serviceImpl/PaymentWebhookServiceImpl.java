@@ -43,6 +43,19 @@ public class PaymentWebhookServiceImpl
         log.info("===== WEBHOOK RECEIVED =====");
         log.info("Processing PayOS Webhook payload: {}", body);
 
+        // A payload with no signature field at all is PayOS confirming the URL, which they do when
+        // the webhook is registered in their dashboard and periodically afterwards. It carries no
+        // order to process, and it has to be answered with 200 — a failure here is what stops the
+        // webhook from being accepted, and without an accepted webhook a completed payment never
+        // reaches us and the subscription is never activated.
+        //
+        // This is only for a *missing* signature. One that is present and wrong still fails below:
+        // that is a forged callback, not a health check.
+        if (body == null || body.get("signature") == null) {
+            log.info("No signature in payload — treating as a PayOS webhook confirmation ping.");
+            return;
+        }
+
         Long orderCode = null;
         try {
             WebhookData data =
